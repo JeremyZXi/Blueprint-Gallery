@@ -2,10 +2,23 @@ import { useEffect, useState } from "react";
 import PasswordComponent from "../components/PasswordComponent";
 import { fetchIAsFromCloudinary } from "../utils/fetchCloudinary";
 import AdminPanel from "../components/AdminPanel";
+import type { Route } from "./+types/home";
 
+interface IASubmission {
+    id: string;
+    pdf: string | null;
+    images: string[];
+}
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "Admin Panel | Blueprint Gallery" },
+    { name: "description", content: "Administrator panel for Blueprint Gallery" },
+  ];
+}
 
 export default function AdminPage() {
-    const [ias, setIAs] = useState([]);
+    const [ias, setIAs] = useState<IASubmission[]>([]);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState("home"); // Track current section
 
@@ -39,6 +52,8 @@ export default function AdminPage() {
 
         files.forEach((file) => {
             const identifier = file.tags[0];
+            if (!identifier) return;
+            
             if (!grouped[identifier]) grouped[identifier] = { pdf: null, images: [] };
 
             if (file.format === "pdf") grouped[identifier].pdf = file.secure_url;

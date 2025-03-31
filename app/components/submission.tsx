@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ChangeEvent, MouseEvent } from "react";
 
 const materials = ["Alloy", "Wood", "Plastic", "Glass", "Fabric", "Composite"];
 const colors = ["Red", "Blue", "Green", "Black", "White", "Yellow"];
@@ -10,8 +11,21 @@ const functions = [
     "Accessibility & Mobility Solutions"
 ];
 
+interface FormData {
+    firstName: string;
+    lastName: string;
+    gradeLevel: string;
+    email: string;
+    title: string;
+    material: string[];
+    color: string[];
+    function: string[];
+    pdf: File | null;
+    images: File[];
+}
+
 const Submission = () => {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<FormData>({
         firstName: "",
         lastName: "",
         gradeLevel: "",
@@ -24,29 +38,33 @@ const Submission = () => {
         images: []
     });
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleTagSelect = (category, tag) => {
-        setFormData((prev) => ({
-            ...prev,
-            [category]: prev[category].includes(tag)
-                ? prev[category].filter((t) => t !== tag)
-                : [...prev[category], tag]
-        }));
+    const handleTagSelect = (category: keyof FormData, tag: string) => {
+        if (category === 'material' || category === 'color' || category === 'function') {
+            setFormData((prev) => ({
+                ...prev,
+                [category]: prev[category].includes(tag)
+                    ? prev[category].filter((t: string) => t !== tag)
+                    : [...prev[category], tag]
+            }));
+        }
     };
 
-    const handleFileChange = (e, type) => {
-    const files = Array.from(e.target.files);
-    if (type === "pdf") {
-        setFormData((prev) => ({ ...prev, pdf: files[0] }));
-    } else {
-        setFormData((prev) => ({
-            ...prev,
-            images: [...prev.images, ...files].slice(0, 6) // Ensure max 6 images
-        }));
-    }
+    const handleFileChange = (e: ChangeEvent<HTMLInputElement>, type: 'pdf' | 'images') => {
+        if (!e.target.files) return;
+        
+        const files = Array.from(e.target.files);
+        if (type === "pdf") {
+            setFormData((prev) => ({ ...prev, pdf: files[0] }));
+        } else {
+            setFormData((prev) => ({
+                ...prev,
+                images: [...prev.images, ...files].slice(0, 6) // Ensure max 6 images
+            }));
+        }
     };
 
     const isValidForm = () => {
@@ -74,6 +92,10 @@ const Submission = () => {
         try {
             // Step 1: Upload PDF to Cloudinary
             const uploadId = Date.now().toString(); // Unique ID for grouping PDF & images
+
+            if (!formData.pdf) {
+                throw new Error("PDF is required");
+            }
 
             const pdfFormData = new FormData();
             pdfFormData.append("file", formData.pdf);
