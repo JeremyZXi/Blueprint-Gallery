@@ -1,19 +1,6 @@
 import { useState, useEffect } from "react";
-import { fetchIAsFromCloudinary } from "../utils/fetchCloudinary";
-
-interface CloudinaryResource {
-    secure_url: string;
-    format: string;
-    resource_type: string;
-    tags: string[];
-}
-
-interface IASubmission {
-    id: string;
-    pdf: string | null;
-    images: string[];
-    tags?: string[];
-}
+import { fetchPendingSubmissions } from "../utils/fetchSupabase";
+import type { IASubmission } from "../utils/supabaseSubmission";
 
 interface AdminPanelProps {
     ias: IASubmission[];
@@ -25,21 +12,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        // Filter IAs that have the "pending" tag
+        // Fetch pending IAs from Supabase
         const fetchPendingIAs = async () => {
             setLoading(true);
             try {
-                const cloudinaryData = await fetchIAsFromCloudinary();
-                
-                // Group the resources by their identifier
-                const grouped = groupItemsByIdentifier(cloudinaryData);
-                
-                // Filter only those with "pending" tag
-                const pendingOnly = grouped.filter((item: IASubmission) => 
-                    item.tags && item.tags.includes("pending")
-                );
-                
-                setPendingIAs(pendingOnly);
+                const pendingData = await fetchPendingSubmissions();
+                setPendingIAs(pendingData);
             } catch (error) {
                 console.error("Error fetching pending IAs:", error);
             } finally {
@@ -52,81 +30,74 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         }
     }, [activeTab]);
 
-    function groupItemsByIdentifier(resources: CloudinaryResource[]): IASubmission[] {
-        const grouped: Record<string, IASubmission> = {};
+    const handleApproveIA = async (id: string | undefined) => {
+        if (!id) {
+            alert("Error: Missing submission ID");
+            return;
+        }
         
-        resources.forEach((resource: CloudinaryResource) => {
-            // Find ID tag
-            const idTag = resource.tags.find((tag: string) => tag.startsWith("id_"));
-            if (!idTag) return;
-            
-            if (!grouped[idTag]) {
-                grouped[idTag] = {
-                    id: idTag,
-                    pdf: null,
-                    images: [],
-                    tags: resource.tags
-                };
-            }
-            
-            if (resource.resource_type === "raw" && resource.format === "pdf") {
-                grouped[idTag].pdf = resource.secure_url;
-            } else if (resource.resource_type === "image") {
-                grouped[idTag].images.push(resource.secure_url);
-            }
-        });
-        
-        return Object.values(grouped);
-    }
-
-    const handleApproveIA = async (id: string) => {
-        // Call API to approve the IA (remove pending tag)
         if (confirm("Are you sure you want to approve this submission?")) {
             try {
                 console.log(`Approving IA with ID: ${id}`);
-                // Call backend API to update Cloudinary tags
+                
+                // Get the admin password from environment
+                const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+                
+                // Call the API endpoint
                 const response = await fetch("/api/approveIA", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id })
+                    body: JSON.stringify({ id, password: adminPassword })
                 });
                 
-                if (response.ok) {
-                    // Remove from pending list
-                    setPendingIAs(prev => prev.filter(ia => ia.id !== id));
-                    alert("IA approved successfully!");
-                } else {
-                    alert("Failed to approve IA. Please try again.");
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to approve submission");
                 }
+                
+                // Remove from pending list
+                setPendingIAs(prev => prev.filter(ia => ia.id !== id));
+                alert("IA approved successfully!");
+                
             } catch (error) {
                 console.error("Error approving IA:", error);
-                alert("Error approving IA. Please try again.");
+                alert(`Error approving IA: ${error instanceof Error ? error.message : "Please try again"}`);
             }
         }
     };
 
-    const handleRejectIA = async (id: string) => {
-        // Call API to reject the IA (remove from Cloudinary)
-        if (confirm("Are you sure you want to reject this submission? This will delete it.")) {
+    const handleRejectIA = async (id: string | undefined) => {
+        if (!id) {
+            alert("Error: Missing submission ID");
+            return;
+        }
+        
+        if (confirm("Are you sure you want to reject this submission? This will mark it as rejected.")) {
             try {
                 console.log(`Rejecting IA with ID: ${id}`);
-                // Call backend API to remove from Cloudinary
+                
+                // Get the admin password from environment
+                const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+                
+                // Call the API endpoint
                 const response = await fetch("/api/rejectIA", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id })
+                    body: JSON.stringify({ id, password: adminPassword })
                 });
                 
-                if (response.ok) {
-                    // Remove from pending list
-                    setPendingIAs(prev => prev.filter(ia => ia.id !== id));
-                    alert("IA rejected and removed successfully!");
-                } else {
-                    alert("Failed to reject IA. Please try again.");
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to reject submission");
                 }
+                
+                // Remove from pending list
+                setPendingIAs(prev => prev.filter(ia => ia.id !== id));
+                alert("IA rejected successfully!");
+                
             } catch (error) {
                 console.error("Error rejecting IA:", error);
-                alert("Error rejecting IA. Please try again.");
+                alert(`Error rejecting IA: ${error instanceof Error ? error.message : "Please try again"}`);
             }
         }
     };
@@ -192,11 +163,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white">
                                         <div className="p-4 border-b flex items-center justify-between">
                                             <div>
-                                                <h3 className="font-bold">Submission ID: {ia.id.replace("id_", "")}</h3>
+                                                <h3 className="font-bold">Submission ID: {ia.id}</h3>
                                                 <p className="text-sm text-gray-500">
-                                                    {ia.tags?.filter(tag => tag.startsWith("name_")).map(tag => 
-                                                        tag.replace("name_", "").replace("_", " ")
-                                                    )}
+                                                    {ia.firstName} {ia.lastName} - {ia.title}
+                                                </p>
+                                                <p className="text-sm text-gray-400">
+                                                    {ia.email} - Grade {ia.gradeLevel}
                                                 </p>
                                             </div>
                                             <div className="flex gap-2">
@@ -219,10 +191,10 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             {/* PDF Preview */}
                                             <div className="mb-4">
                                                 <h4 className="font-semibold mb-2">PDF Document</h4>
-                                                {ia.pdf ? (
+                                                {ia.pdfUrl ? (
                                                     <div className="border rounded p-2">
                                                         <a 
-                                                            href={ia.pdf} 
+                                                            href={ia.pdfUrl} 
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-blue-500 underline flex items-center"
@@ -243,9 +215,9 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             {/* Images Preview */}
                                             <div>
                                                 <h4 className="font-semibold mb-2">Uploaded Images</h4>
-                                                {ia.images.length > 0 ? (
+                                                {ia.imageUrls && ia.imageUrls.length > 0 ? (
                                                     <div className="grid grid-cols-3 gap-2">
-                                                        {ia.images.map((img, idx) => (
+                                                        {ia.imageUrls.map((img, idx) => (
                                                             <a 
                                                                 key={idx}
                                                                 href={img}
@@ -266,6 +238,49 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                         No images available
                                                     </div>
                                                 )}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Metadata */}
+                                        <div className="p-4 border-t">
+                                            <h4 className="font-semibold mb-2">Project Details</h4>
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-700">Materials</h5>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {ia.material ? ia.material.map((mat, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                                                {mat}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-xs text-gray-500">No materials specified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-700">Colors</h5>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {ia.color ? ia.color.map((col, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                                                                {col}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-xs text-gray-500">No colors specified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-700">Functions</h5>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {ia.function ? ia.function.map((func, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                                                                {func}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-xs text-gray-500">No functions specified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchIAsFromCloudinary } from "../utils/fetchCloudinary";
-
-interface CloudinaryResource {
-  secure_url: string;
-  format: string;
-  resource_type: string;
-  tags: string[];
-}
+import { fetchApprovedSubmissions, formatSubmissionsForGallery } from "../utils/fetchSupabase";
 
 interface IAItem {
   id: string;
@@ -15,6 +8,7 @@ interface IAItem {
   tags: string[]; // Store all tags for filtering
   title?: string;
   creator?: string;
+  gradeLevel?: string;
 }
 
 const Gallery = () => {
@@ -40,14 +34,9 @@ const Gallery = () => {
     async function loadApprovedIAs() {
       setLoading(true);
       try {
-        const cloudinaryData = await fetchIAsFromCloudinary();
-        // Filter out items with "pending" tag
-        const approvedItems = cloudinaryData.filter(
-          (item: CloudinaryResource) => !item.tags.includes("pending")
-        );
-        
-        const groupedIAs = groupByIdentifier(approvedItems);
-        setIAs(groupedIAs);
+        const submissions = await fetchApprovedSubmissions();
+        const formattedSubmissions = formatSubmissionsForGallery(submissions);
+        setIAs(formattedSubmissions);
       } catch (error) {
         console.error("Failed to load gallery items:", error);
       } finally {
@@ -57,41 +46,6 @@ const Gallery = () => {
     
     loadApprovedIAs();
   }, []);
-
-  // Group items by their unique identifier (first tag)
-  function groupByIdentifier(files: CloudinaryResource[]) {
-    const grouped: Record<string, IAItem> = {};
-
-    files.forEach((file) => {
-      if (!file.tags || file.tags.length === 0) return;
-      
-      const identifier = file.tags.find((tag: string) => tag.startsWith("id_"));
-      if (!identifier) return;
-      
-      if (!grouped[identifier]) {
-        // Extract metadata from tags if available
-        const titleTag = file.tags.find((tag: string) => tag.startsWith("title_"));
-        const nameTag = file.tags.find((tag: string) => tag.startsWith("name_"));
-        
-        grouped[identifier] = { 
-          id: identifier, 
-          pdf: null, 
-          images: [],
-          tags: file.tags,
-          title: titleTag ? titleTag.replace("title_", "") : "Untitled IA",
-          creator: nameTag ? nameTag.replace("name_", "").replace("_", " ") : "Anonymous"
-        };
-      }
-
-      if (file.resource_type === "raw" && file.format === "pdf") {
-        grouped[identifier].pdf = file.secure_url;
-      } else if (file.resource_type === "image") {
-        grouped[identifier].images.push(file.secure_url);
-      }
-    });
-
-    return Object.values(grouped);
-  }
 
   const handleFilterSelect = (category: string, value: string) => {
     setSelectedCategory(category);
@@ -186,7 +140,10 @@ const Gallery = () => {
               {/* Content */}
               <div className="p-4">
                 <h3 className="font-bold text-lg">{ia.title}</h3>
-                <p className="text-gray-600 mb-4">Created by {ia.creator}</p>
+                <p className="text-gray-600">Created by {ia.creator}</p>
+                {ia.gradeLevel && (
+                  <p className="text-gray-500 text-sm mb-4">Grade {ia.gradeLevel}</p>
+                )}
                 
                 {/* View PDF button */}
                 {ia.pdf && (
@@ -194,7 +151,7 @@ const Gallery = () => {
                     href={ia.pdf}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block w-full py-2 px-4 bg-blue-500 text-white text-center rounded hover:bg-blue-600 transition-colors"
+                    className="block w-full py-2 px-4 bg-blue-500 text-white text-center rounded hover:bg-blue-600 transition-colors mt-4"
                   >
                     View Project
                   </a>
