@@ -1,6 +1,9 @@
 import type { ActionFunction } from "react-router-dom";
+import { supabase } from "../utils/supabase";
+import type { IASubmission } from "../utils/supabaseSubmission";
 
 interface SubmissionData {
+  id: string;
   firstName: string;
   lastName: string;
   gradeLevel: string;
@@ -10,7 +13,7 @@ interface SubmissionData {
   color: string[];
   function: string[];
   pdfUrl: string;
-  images: string[];
+  imageUrls: string[];
   [key: string]: string | string[];
 }
 
@@ -34,33 +37,42 @@ export const action: ActionFunction = async ({ request }: { request: Request }) 
     }
     
     // Ensure at least 3 images were uploaded
-    if (!submissionData.images || submissionData.images.length < 3) {
+    if (!submissionData.imageUrls || submissionData.imageUrls.length < 3) {
       return Response.json({ 
         error: "At least 3 images are required" 
       }, { status: 400 });
     }
     
-    // Cloudinary resources are already uploaded by the frontend
-    // We update the database or log the submission success as needed
-    
-    // In a real implementation, you might:
-    // 1. Store the submission in a database
-    // 2. Send notification emails
-    // 3. Log activity for admin review
-    
-    console.log("New IA submission:", {
-      name: `${submissionData.firstName} ${submissionData.lastName}`,
+    // Store submission in Supabase as a backup
+    // Even though we already have it stored directly from the client,
+    // this ensures we have a record of all submissions from the API
+    const submission: IASubmission = {
+      firstName: submissionData.firstName,
+      lastName: submissionData.lastName,
+      gradeLevel: submissionData.gradeLevel,
       email: submissionData.email,
       title: submissionData.title,
-      attachments: {
-        pdf: submissionData.pdfUrl,
-        imageCount: submissionData.images.length
-      }
-    });
+      material: submissionData.material,
+      color: submissionData.color,
+      function: submissionData.function,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      pdfUrl: submissionData.pdfUrl,
+      imageUrls: submissionData.imageUrls
+    };
+    
+    // Add record to submissions_api table
+    const { data, error } = await supabase
+      .from('submissions_api')
+      .insert([submission])
+      .select();
+    
+    if (error) throw error;
     
     return Response.json({ 
       success: true, 
-      message: "IA submitted successfully. It will be reviewed by an administrator."
+      message: "IA submitted successfully. It will be reviewed by an administrator.",
+      id: data[0].id
     });
   } catch (error: unknown) {
     console.error("Error processing IA submission:", error);

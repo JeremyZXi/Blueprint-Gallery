@@ -1,5 +1,7 @@
 import { useState } from "react";
-import type { ChangeEvent, MouseEvent } from "react";
+import type { ChangeEvent } from "react";
+import { handleSubmission } from "../utils/supabaseSubmission";
+import { testSupabaseConnection } from "../utils/testSupabase";
 
 const materials = ["Alloy", "Wood", "Plastic", "Glass", "Fabric", "Composite"];
 const colors = ["Red", "Blue", "Green", "Black", "White", "Yellow"];
@@ -37,6 +39,10 @@ const Submission = () => {
         pdf: null,
         images: []
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [isTestingConnection, setIsTestingConnection] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<"untested" | "success" | "failed">("untested");
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -83,99 +89,33 @@ const Submission = () => {
         );
     };
 
-    const handleSubmit = async () => {
+    const updateProgress = (progress: number) => {
+        setUploadProgress(progress);
+    };
+
+    const handleSubmitForm = async () => {
         if (!isValidForm()) {
             alert("Please fill out all required fields.");
             return;
         }
 
         try {
-            // Step 1: Upload PDF to Cloudinary
-            const uploadId = Date.now().toString(); // Unique ID for grouping PDF & images
-
-            if (!formData.pdf) {
-                throw new Error("PDF is required");
-            }
-
-            const pdfFormData = new FormData();
-            pdfFormData.append("file", formData.pdf);
-            pdfFormData.append("upload_preset", "your_cloudinary_preset");
-            pdfFormData.append("folder", "blueprint_gallery_uploads"); // Upload to Cloudinary folder
-
-// Add metadata as Cloudinary tags
-            const pdfTags = [
-                `id_${uploadId}`, // Unique ID to link PDF & images
-                `name_${formData.firstName}_${formData.lastName}`,
-                `email_${formData.email}`,
-                ...formData.material.map((m) => `material_${m}`),
-                ...formData.color.map((c) => `color_${c}`),
-                ...formData.function.map((f) => `function_${f}`),
-            ].join(",");
-
-            pdfFormData.append("tags", pdfTags); // Attach tags to PDF
-            console.log("Uploading PDF to Cloudinary with tags:", pdfTags);
-
-            const pdfResponse = await fetch("https://api.cloudinary.com/v1_1/your_cloud_name/upload", {
-                method: "POST",
-                body: pdfFormData,
+            setIsSubmitting(true);
+            setUploadProgress(0);
+            
+            console.log("Starting Supabase submission process...");
+            console.log("Form data:", {
+                ...formData,
+                pdf: formData.pdf?.name,
+                images: formData.images.map(img => img.name)
             });
-
-            const pdfResult = await pdfResponse.json();
-            if (!pdfResponse.ok) throw new Error("PDF upload failed");
-            console.log("PDF Uploaded:", pdfResult.secure_url);
-
-            // Step 2: Upload images to Cloudinary
-            const imageUrls = [];
-            for (const image of formData.images) {
-                const imgFormData = new FormData();
-                imgFormData.append("file", image);
-                imgFormData.append("upload_preset", "your_cloudinary_preset");
-                imgFormData.append("folder", "blueprint_gallery_uploads"); // Upload to folder
-
-                // Use the same unique ID for linking images with PDF
-                const imgTags = [`id_${uploadId}`];
-
-                imgFormData.append("tags", imgTags.join(","));
-                console.log("Uploading image to Cloudinary with tags:", imgTags);
-
-                const imgResponse = await fetch("https://api.cloudinary.com/v1_1/your_cloud_name/upload", {
-                    method: "POST",
-                    body: imgFormData,
-                });
-
-                const imgResult = await imgResponse.json();
-                if (!imgResponse.ok) throw new Error("Image upload failed");
-
-                imageUrls.push(imgResult.secure_url);
-            }
-            console.log("All images uploaded:", imageUrls);
-
-            // Step 3: Send IA details to backend
-            const finalData = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                gradeLevel: formData.gradeLevel,
-                email: formData.email,
-                title: formData.title,
-                material: formData.material,
-                color: formData.color,
-                function: formData.function,
-                pdfUrl: pdfResult.secure_url,
-                images: imageUrls,
-            };
-
-            console.log("Sending final submission data to backend...");
-            const response = await fetch("/api/submitIA", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(finalData),
-            });
-
-            if (!response.ok) throw new Error("Submission to backend failed");
-            const result = await response.json();
-            alert("Submission successful!");
-            console.log("Final Response:", result);
-
+            
+            // Handle the submission process using Supabase
+            const result = await handleSubmission(formData, updateProgress);
+            
+            console.log("Submission complete!", result);
+            alert("Submission successful! Your project will be reviewed by an administrator.");
+            
             // Reset form after successful submission
             setFormData({
                 firstName: "",
@@ -192,24 +132,131 @@ const Submission = () => {
 
         } catch (error) {
             console.error("Error during submission:", error);
-            alert("Submission failed, please try again.");
+            let errorMessage = "Please try again.";
+            
+            if (error instanceof Error) {
+                console.error("Error type:", error.constructor.name);
+                console.error("Error message:", error.message);
+                errorMessage = error.message;
+                
+                // Try to extract more information if it's a Supabase error
+                if (error.hasOwnProperty('error') && error.hasOwnProperty('message')) {
+                    // @ts-ignore
+                    console.error("Supabase error details:", error.error, error.message);
+                    // @ts-ignore
+                    errorMessage = `${error.message} (${error.error})`;
+                }
+            }
+            
+            alert("Submission failed: " + errorMessage);
+        } finally {
+            setIsSubmitting(false);
+            setUploadProgress(0);
+        }
+    };
+
+    const handleTestConnection = async () => {
+        setIsTestingConnection(true);
+        setConnectionStatus("untested");
+        
+        try {
+            const isConnected = await testSupabaseConnection();
+            setConnectionStatus(isConnected ? "success" : "failed");
+            alert(isConnected 
+                ? "Connection to Supabase successful! You can submit your project now." 
+                : "Connection to Supabase failed. Please check the console for details.");
+        } catch (error) {
+            console.error("Error testing connection:", error);
+            setConnectionStatus("failed");
+            alert("Error testing connection to Supabase.");
+        } finally {
+            setIsTestingConnection(false);
         }
     };
 
     return (
         <div className="max-w-2xl mx-auto p-6">
             <h2 className="text-2xl font-bold mb-4">Submit Your IA</h2>
+            
+            {/* Test Connection Button */}
+            <div className="mb-4">
+                <button 
+                    onClick={handleTestConnection}
+                    disabled={isTestingConnection}
+                    className={`px-4 py-2 text-sm rounded 
+                        ${connectionStatus === "success" ? "bg-green-100 text-green-800" : 
+                          connectionStatus === "failed" ? "bg-red-100 text-red-800" : 
+                          "bg-blue-100 text-blue-800"} 
+                        hover:opacity-80 transition-opacity`}
+                >
+                    {isTestingConnection ? "Testing..." : "Test Supabase Connection"}
+                </button>
+                {connectionStatus === "success" && (
+                    <span className="ml-2 text-green-600">✓ Connected</span>
+                )}
+                {connectionStatus === "failed" && (
+                    <span className="ml-2 text-red-600">✗ Connection failed</span>
+                )}
+            </div>
+            
+            {isSubmitting && (
+                <div className="mb-6">
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div 
+                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" 
+                            style={{ width: `${uploadProgress}%` }}
+                        ></div>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">Uploading your project... {Math.round(uploadProgress)}%</p>
+                </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
-                <input type="text" name="firstName" placeholder="First Name" className="border p-2 rounded"
-                       onChange={handleInputChange}/>
-                <input type="text" name="lastName" placeholder="Last Name" className="border p-2 rounded"
-                       onChange={handleInputChange}/>
-                <input type="text" name="gradeLevel" placeholder="Grade Level" className="border p-2 rounded"
-                       onChange={handleInputChange}/>
-                <input type="email" name="email" placeholder="Email Address" className="border p-2 rounded"
-                       onChange={handleInputChange}/>
-                <input type="text" name="title" placeholder="IA Title" className="border p-2 rounded col-span-2"
-                       onChange={handleInputChange}/>
+                <input 
+                    type="text" 
+                    name="firstName" 
+                    value={formData.firstName}
+                    placeholder="First Name" 
+                    className="border p-2 rounded"
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                />
+                <input 
+                    type="text" 
+                    name="lastName" 
+                    value={formData.lastName}
+                    placeholder="Last Name" 
+                    className="border p-2 rounded"
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                />
+                <input 
+                    type="text" 
+                    name="gradeLevel" 
+                    value={formData.gradeLevel}
+                    placeholder="Grade Level" 
+                    className="border p-2 rounded"
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                />
+                <input 
+                    type="email" 
+                    name="email" 
+                    value={formData.email}
+                    placeholder="Email Address" 
+                    className="border p-2 rounded"
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                />
+                <input 
+                    type="text" 
+                    name="title" 
+                    value={formData.title}
+                    placeholder="IA Title" 
+                    className="border p-2 rounded col-span-2"
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                />
             </div>
 
             {/* Material Selection */}
@@ -218,8 +265,9 @@ const Submission = () => {
                 {materials.map((mat) => (
                     <button
                         key={mat}
-                        className={`p-2 border rounded ${formData.material.includes(mat) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"}`}
-                        onClick={() => handleTagSelect("material", mat)}
+                        className={`p-2 border rounded ${formData.material.includes(mat) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !isSubmitting && handleTagSelect("material", mat)}
+                        disabled={isSubmitting}
                     >
                         {mat}
                     </button>
@@ -232,8 +280,9 @@ const Submission = () => {
                 {colors.map((col) => (
                     <button
                         key={col}
-                        className={`p-2 border rounded ${formData.color.includes(col) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"}`}
-                        onClick={() => handleTagSelect("color", col)}
+                        className={`p-2 border rounded ${formData.color.includes(col) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !isSubmitting && handleTagSelect("color", col)}
+                        disabled={isSubmitting}
                     >
                         {col}
                     </button>
@@ -246,8 +295,9 @@ const Submission = () => {
                 {functions.map((func) => (
                     <button
                         key={func}
-                        className={`p-2 border rounded ${formData.function.includes(func) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"}`}
-                        onClick={() => handleTagSelect("function", func)}
+                        className={`p-2 border rounded ${formData.function.includes(func) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !isSubmitting && handleTagSelect("function", func)}
+                        disabled={isSubmitting}
                     >
                         {func}
                     </button>
@@ -256,9 +306,14 @@ const Submission = () => {
 
             {/* File Upload */}
             <h3 className="mt-4">Upload Your IA PDF</h3>
-            <label className="border p-2 rounded block cursor-pointer">
-                <input type="file" accept="application/pdf" className="hidden"
-                       onChange={(e) => handleFileChange(e, "pdf")}/>
+            <label className={`border p-2 rounded block cursor-pointer ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <input 
+                    type="file" 
+                    accept="application/pdf" 
+                    className="hidden"
+                    onChange={(e) => !isSubmitting && handleFileChange(e, "pdf")}
+                    disabled={isSubmitting}
+                />
                 {formData.pdf ? formData.pdf.name : "Click to upload a PDF"}
             </label>
 
@@ -267,8 +322,8 @@ const Submission = () => {
                 {formData.images.map((img, index) => (
                     <div
                         key={index}
-                        className="relative w-20 h-20 cursor-pointer group"
-                        onClick={() => setFormData((prev) => ({
+                        className={`relative w-20 h-20 cursor-pointer group ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !isSubmitting && setFormData((prev) => ({
                             ...prev,
                             images: prev.images.filter((_, i) => i !== index)
                         }))}
@@ -285,22 +340,27 @@ const Submission = () => {
                         </div>
                     </div>
                 ))}
-                {formData.images.length < 6 && (
+                {formData.images.length < 6 && !isSubmitting && (
                     <label
-                        className="border p-2 rounded flex items-center justify-center cursor-pointer w-20 h-20 bg-gray-100">
+                        className={`border p-2 rounded flex items-center justify-center cursor-pointer w-20 h-20 bg-gray-100 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         <input
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => handleFileChange(e, "images")}
+                            onChange={(e) => !isSubmitting && handleFileChange(e, "images")}
+                            disabled={isSubmitting}
                         />
                         <span className="text-gray-500 text-sm">+ Add More</span>
                     </label>
                 )}
             </div>
 
-            <button onClick={handleSubmit} className="mt-4 bg-green-500 text-white p-2 rounded w-full cursor-pointer">
-                Submit
+            <button 
+                onClick={handleSubmitForm} 
+                className={`mt-4 bg-green-500 text-white p-2 rounded w-full cursor-pointer ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-600'}`}
+                disabled={isSubmitting}
+            >
+                {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
         </div>
     );

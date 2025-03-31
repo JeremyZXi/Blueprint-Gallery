@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import PasswordComponent from "../components/PasswordComponent";
-import { fetchIAsFromCloudinary } from "../utils/fetchCloudinary";
 import AdminPanel from "../components/AdminPanel";
 import type { Route } from "./+types/home";
-
-interface IASubmission {
-    id: string;
-    pdf: string | null;
-    images: string[];
-}
+import { fetchSubmissionsFromSupabase } from "../utils/fetchSupabase";
+import type { IASubmission } from "../utils/supabaseSubmission";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -20,7 +15,6 @@ export function meta({}: Route.MetaArgs) {
 export default function AdminPage() {
     const [ias, setIAs] = useState<IASubmission[]>([]);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [activeTab, setActiveTab] = useState("home"); // Track current section
 
     useEffect(() => {
         const auth = localStorage.getItem("admin_authenticated");
@@ -39,29 +33,16 @@ export default function AdminPage() {
     useEffect(() => {
         if (typeof window !== "undefined" && isAuthenticated) {
             async function loadIAs() {
-                const cloudinaryData = await fetchIAsFromCloudinary();
-                const groupedIAs = groupByIdentifier(cloudinaryData);
-                setIAs(groupedIAs);
+                try {
+                    const submissions = await fetchSubmissionsFromSupabase();
+                    setIAs(submissions);
+                } catch (error) {
+                    console.error("Error loading submissions:", error);
+                }
             }
             loadIAs();
         }
     }, [isAuthenticated]);
-
-    function groupByIdentifier(files: { secure_url: string; format: string; tags: string[] }[]) {
-        const grouped: Record<string, { pdf: string | null; images: string[] }> = {};
-
-        files.forEach((file) => {
-            const identifier = file.tags[0];
-            if (!identifier) return;
-            
-            if (!grouped[identifier]) grouped[identifier] = { pdf: null, images: [] };
-
-            if (file.format === "pdf") grouped[identifier].pdf = file.secure_url;
-            else grouped[identifier].images.push(file.secure_url);
-        });
-
-        return Object.entries(grouped).map(([id, data]) => ({ id, ...data }));
-    }
 
     return (
         <div className="flex">

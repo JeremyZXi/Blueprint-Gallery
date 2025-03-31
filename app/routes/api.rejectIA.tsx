@@ -1,16 +1,5 @@
 import type { ActionFunction } from "react-router-dom";
-
-// TypeScript interfaces
-interface CloudinaryResource {
-  public_id: string;
-  secure_url: string;
-  resource_type: string;
-}
-
-interface CloudinaryResponse {
-  resources: CloudinaryResource[];
-  total_count: number;
-}
+import { supabase } from "../utils/supabase";
 
 export const action: ActionFunction = async ({ request }: { request: Request }) => {
   if (request.method !== "POST") {
@@ -18,63 +7,71 @@ export const action: ActionFunction = async ({ request }: { request: Request }) 
   }
 
   try {
-    const { id } = await request.json();
+    const { id, password } = await request.json();
     
     if (!id) {
       return Response.json({ error: "Missing required field: id" }, { status: 400 });
     }
 
-    // Cloudinary API credentials
-    const cloudName = process.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.VITE_CLOUDINARY_API_KEY;
-    const apiSecret = process.env.VITE_CLOUDINARY_API_SECRET;
-    
-    if (!cloudName || !apiKey || !apiSecret) {
-      return Response.json({ error: "Missing Cloudinary credentials" }, { status: 500 });
+    const expectedPassword = process.env.VITE_ADMIN_PASSWORD;
+
+    if (!expectedPassword || password !== expectedPassword) {
+      return Response.json({ error: "Invalid admin password" }, { status: 401 });
     }
     
-    // First, search for all resources with the ID tag
-    const searchResponse = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/resources/search?expression=tags=${id}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Basic ${Buffer.from(apiKey + ":" + apiSecret).toString("base64")}`,
-        },
-      }
-    );
-    
-    if (!searchResponse.ok) {
-      const searchError = await searchResponse.json();
-      return Response.json({ error: "Cloudinary search failed", details: searchError }, { status: 500 });
+    // Update submission status to rejected
+    const { error: updateError } = await supabase
+      .from('submissions')
+      .update({ status: 'rejected' })
+      .eq('id', id);
+      
+    if (updateError) {
+      throw new Error(`Failed to update submission status: ${updateError.message}`);
     }
     
-    const resources: CloudinaryResponse = await searchResponse.json();
-    
-    if (resources.total_count === 0) {
-      return Response.json({ error: "No resources found with the provided ID" }, { status: 404 });
+    // Get the submission to find file paths
+    const { data: submission, error: fetchError } = await supabase
+      .from('submissions')
+      .select('pdfUrl, imageUrls')
+      .eq('id', id)
+      .single();
+      
+    if (fetchError) {
+      throw new Error(`Failed to fetch submission: ${fetchError.message}`);
     }
     
-    // Delete each resource using the public_id
-    const deletePromises = resources.resources.map(async (resource: CloudinaryResource) => {
-      return fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/${resource.resource_type}/destroy`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Basic ${Buffer.from(apiKey + ":" + apiSecret).toString("base64")}`,
-          },
-          body: JSON.stringify({
-            public_id: resource.public_id
-          }),
+    if (!submission) {
+      return Response.json({ error: "Submission not found" }, { status: 404 });
+    }
+    
+    // Delete files from storage
+    const filesToDelete = [
+      submission.pdfUrl,
+      ...(submission.imageUrls || [])
+    ];
+    
+    // Extract paths from URLs
+    const storagePaths = filesToDelete.map(url => {
+      // Get only the path after /storage/v1/object/public/
+      const match = url.match(/\/storage\/v1\/object\/public\/([^?]+)/);
+      return match ? match[1] : null;
+    }).filter(Boolean);
+    
+    // Delete each file from storage
+    for (const path of storagePaths) {
+      if (path) {
+        const { error: deleteError } = await supabase.storage
+          .from('submissions')
+          .remove([path]);
+          
+        if (deleteError) {
+          console.error(`Failed to delete file at path ${path}:`, deleteError);
+          // Continue with other deletions even if one fails
         }
-      );
-    });
+      }
+    }
     
-    await Promise.all(deletePromises);
-    
-    return Response.json({ success: true, message: "IA rejected and deleted successfully" });
+    return Response.json({ success: true, message: "IA rejected successfully" });
   } catch (error: unknown) {
     console.error("Error rejecting IA:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
