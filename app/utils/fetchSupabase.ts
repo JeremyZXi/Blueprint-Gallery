@@ -129,6 +129,12 @@ export const formatSubmissionsForGallery = (submissions: IASubmission[]) => {
     ],
     title: submission.title,
     creator: `${submission.firstName} ${submission.lastName}`,
-    gradeLevel: submission.gradeLevel
+    gradeLevel: submission.gradeLevel,
+    submissionDate: new Date(submission.createdAt).toLocaleDateString(),
+    description: `This is a ${submission.title} designed by ${submission.firstName} ${submission.lastName} in grade ${submission.gradeLevel}.
+    
+    The design incorporates ${submission.material?.join(', ') || 'various materials'} with ${submission.color?.join(', ') || 'various colors'} color scheme.
+    
+    This project serves functions related to ${submission.function?.join(', ') || 'various applications'}.`
   }));
 }; 

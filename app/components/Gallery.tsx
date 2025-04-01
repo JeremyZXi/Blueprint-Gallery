@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { fetchApprovedSubmissions, formatSubmissionsForGallery } from "../utils/fetchSupabase";
+import IADetailView from "./IADetailView";
 
 interface IAItem {
   id: string;
@@ -9,6 +10,8 @@ interface IAItem {
   title?: string;
   creator?: string;
   gradeLevel?: string;
+  submissionDate?: string;
+  description?: string;
 }
 
 const Gallery = () => {
@@ -16,6 +19,7 @@ const Gallery = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedIA, setSelectedIA] = useState<IAItem | null>(null);
 
   // Available filter categories
   const filterCategories = {
@@ -55,6 +59,21 @@ const Gallery = () => {
   const clearFilters = () => {
     setSelectedCategory(null);
     setActiveFilter(null);
+  };
+
+  const handleIAClick = (ia: IAItem) => {
+    setSelectedIA(ia);
+  };
+
+  const closeDetailView = () => {
+    setSelectedIA(null);
+  };
+
+  // Extract tag categories for display
+  const getCategoryFromTags = (ia: IAItem, categoryPrefix: string): string[] => {
+    return ia.tags
+      .filter(tag => tag.startsWith(`${categoryPrefix}_`))
+      .map(tag => tag.replace(`${categoryPrefix}_`, ''));
   };
 
   // Filter IAs based on selected filter
@@ -121,7 +140,11 @@ const Gallery = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredIAs.map((ia) => (
-            <div key={ia.id} className="border rounded-lg overflow-hidden shadow-lg transition-transform hover:scale-105">
+            <div 
+              key={ia.id} 
+              className="border rounded-lg overflow-hidden shadow-lg transition-transform hover:scale-105 cursor-pointer"
+              onClick={() => handleIAClick(ia)}
+            >
               {/* Thumbnail/Image */}
               <div className="aspect-w-16 aspect-h-9 bg-gray-100">
                 {ia.images && ia.images.length > 0 ? (
@@ -145,21 +168,40 @@ const Gallery = () => {
                   <p className="text-gray-500 text-sm mb-4">Grade {ia.gradeLevel}</p>
                 )}
                 
-                {/* View PDF button */}
-                {ia.pdf && (
-                  <a
-                    href={ia.pdf}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full py-2 px-4 bg-blue-500 text-white text-center rounded hover:bg-blue-600 transition-colors mt-4"
-                  >
-                    View Project
-                  </a>
-                )}
+                {/* View button */}
+                <button 
+                  className="block w-full py-2 px-4 bg-blue-500 text-white text-center rounded hover:bg-blue-600 transition-colors mt-4"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleIAClick(ia);
+                  }}
+                >
+                  View Details
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+      
+      {/* Detail View Modal */}
+      {selectedIA && (
+        <IADetailView
+          id={selectedIA.id}
+          title={selectedIA.title || "Untitled Project"}
+          creator={selectedIA.creator}
+          submissionDate={selectedIA.submissionDate}
+          category={getCategoryFromTags(selectedIA, 'function')[0]}
+          tags={[
+            ...getCategoryFromTags(selectedIA, 'material'),
+            ...getCategoryFromTags(selectedIA, 'color'),
+            ...getCategoryFromTags(selectedIA, 'function')
+          ]}
+          description={selectedIA.description}
+          images={selectedIA.images}
+          pdfUrl={selectedIA.pdf || undefined}
+          onClose={closeDetailView}
+        />
       )}
     </div>
   );
