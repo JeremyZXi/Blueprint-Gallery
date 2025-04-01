@@ -1,87 +1,113 @@
-# Welcome to React Router!
+# Blueprint Gallery
 
-A modern, production-ready template for building full-stack React applications using React Router.
+A modern web platform for showcasing and managing IB Design Technology IA projects.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+## Overview
+
+Blueprint Gallery is a specialized application designed to showcase student IA (Internal Assessment) design projects. The platform allows students to submit their design work, including PDFs and images, while administrators can review, approve, reject, and manage these submissions. The approved projects are displayed in a filterable gallery for visitors to browse and explore.
 
 ## Features
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+### For Students and Visitors
+
+- **Browse Gallery**: Explore approved IA projects with filtering options by material, color, and function
+- **Submit Projects**: Upload IA projects with comprehensive details:
+  - Personal information (name, grade level, email)
+  - Project title and description
+  - Material and color classifications
+  - Functional categories
+  - PDF documentation
+  - Multiple project images (minimum 3, maximum 6)
+
+### For Administrators
+
+- **Admin Dashboard**: View submission statistics and manage content
+- **Approval System**: Review pending submissions and approve or reject them
+- **Rejected Items Management**: View rejected submissions with options to:
+  - Move them back to pending status for reconsideration
+  - Permanently delete them from the system
+- **Classification System**: Organize and categorize submissions (coming soon)
+
+## Technical Implementation
+
+- **Frontend**: React with TypeScript, using ReactRouter for navigation
+- **Styling**: TailwindCSS for responsive modern design
+- **Backend Storage**: Supabase for database and file storage
+- **Authentication**: Simple password-based admin authentication
+- **API**: Custom API endpoints for submission, approval, and rejection processes
+
+## Project Structure
+
+- `/app` - Main application code
+  - `/components` - Reusable UI components
+  - `/routes` - Page definitions and routing
+  - `/utils` - Utility functions for Supabase integration
+  - `/api` - API endpoint implementations
 
 ## Getting Started
 
-### Installation
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Set up environment variables in `.env.local`:
+   ```
+   VITE_ADMIN_PASSWORD=yourpassword
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_key
+   ```
+4. Start the development server:
+   ```
+   npm run dev
+   ```
 
-Install the dependencies:
+## Configuration
 
-```bash
-npm install
-```
+### Supabase Setup
 
-### Development
+1. Create a Supabase project
+2. Set up a 'submissions' table with the following fields:
+   - id (uuid, primary key)
+   - firstName (text)
+   - lastName (text)
+   - gradeLevel (text)
+   - email (text)
+   - title (text)
+   - material (array)
+   - color (array)
+   - function (array)
+   - status (text: 'pending', 'approved', or 'rejected')
+   - createdAt (timestamp)
+   - pdfUrl (text)
+   - imageUrls (array)
+3. Create a 'submissions' storage bucket for files
 
-Start the development server with HMR:
+## Usage
 
-```bash
-npm run dev
-```
+### Student Submission Process
 
-Your application will be available at `http://localhost:5173`.
+1. Navigate to the Submit IA page
+2. Fill in personal and project details
+3. Select relevant categories for material, color, and function
+4. Upload PDF documentation and at least 3 project images
+5. Submit for admin review
 
-## Building for Production
+### Admin Review Process
 
-Create a production build:
+1. Access the admin panel through the Admin link
+2. Enter the admin password to gain access
+3. View the dashboard for submission statistics
+4. Navigate to the Pending tab to review new submissions
+5. Approve or reject submissions as appropriate
+6. Manage rejected submissions in the Rejected tab
 
-```bash
-npm run build
-```
+## License
 
-## Deployment
+[MIT License](LICENSE)
 
-### Docker Deployment
+## Acknowledgements
 
-To build and run using Docker:
-
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+- This project was built to support design technology students in showcasing their work
+- Utilizes Supabase for backend functionality
+- Built with modern React patterns and TailwindCSS
