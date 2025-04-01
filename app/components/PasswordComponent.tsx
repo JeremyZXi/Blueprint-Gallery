@@ -36,7 +36,7 @@ const PasswordComponent = ({ onAuthSuccess }: { onAuthSuccess: (isAuth: boolean)
                         }
                     }}
                 />
-                <button onClick={handleLogin} className="mt-2 p-2 bg-blue-500 text-white rounded w-64">
+                <button onClick={handleLogin} className="mt-2 p-2 cursor-pointer bg-blue-500 text-white rounded w-64">
                     Login
                 </button>
                 {error && <p className="text-red-500 mt-2">{error}</p>}

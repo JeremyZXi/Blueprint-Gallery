@@ -223,14 +223,27 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
     return (
         <div className="flex">
             {/* Left Sidebar Navigation */}
-            <nav className="w-40 h-screen bg-gray-200 flex flex-col items-center py-4">
-                <button onClick={() => setActiveTab("home")} className="mb-4 cursor-pointer">🏠 Main panel</button>
-                <button onClick={() => setActiveTab("approved")} className="mb-4 cursor-pointer">✅ Approved</button>
-                <button onClick={() => setActiveTab("pending")} className="mb-4 cursor-pointer">⏳ Pending</button>
-                <button onClick={() => setActiveTab("rejected")} className="mb-4 cursor-pointer">🗑️ Rejected</button>
-                <button onClick={() => setActiveTab("classification")} className="mb-4 cursor-pointer">📂 Classification</button>
+            <nav className="w-40 h-screen bg-gray-200 flex flex-col items-center py-4 relative">
+                <div className="flex flex-col items-center">
+                    <button onClick={() => setActiveTab("home")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "home" ? "bg-blue-100 border-blue-300" : ""} hover:bg-gray-100 transition-colors`}>
+                        <span className="mr-2">🏠</span> Main panel
+                    </button>
+                    <button onClick={() => setActiveTab("approved")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "approved" ? "bg-green-100 border-green-300" : ""} hover:bg-gray-100 transition-colors`}>
+                        <span className="mr-2">✅</span> Approved
+                    </button>
+                    <button onClick={() => setActiveTab("pending")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "pending" ? "bg-yellow-100 border-yellow-300" : ""} hover:bg-gray-100 transition-colors`}>
+                        <span className="mr-2">⏳</span> Pending
+                    </button>
+                    <button onClick={() => setActiveTab("rejected")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "rejected" ? "bg-red-100 border-red-300" : ""} hover:bg-gray-100 transition-colors`}>
+                        <span className="mr-2">🗑️</span> Rejected
+                    </button>
+                    <button onClick={() => setActiveTab("classification")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "classification" ? "bg-purple-100 border-purple-300" : ""} hover:bg-gray-100 transition-colors`}>
+                        <span className="mr-2">📂</span> Classification
+                    </button>
+                </div>
+                
                 <button
-                    className="mt-4 p-2 bg-red-500 text-white rounded cursor-pointer"
+                    className="absolute bottom-4 p-2 bg-red-500 cursor-pointer text-white rounded w-34 text-center hover:bg-red-600 transition-colors"
                     onClick={() => {
                         localStorage.removeItem("admin_authenticated");
                         localStorage.removeItem("admin_auth_expiration");
@@ -252,18 +265,129 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                             <div className="bg-blue-100 p-4 rounded shadow">
                                 <h2 className="font-bold">Total IAs</h2>
                                 <p className="text-2xl">{pendingIAs.length + approvedIAs.length + rejectedIAs.length}</p>
+                                
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-medium mb-2">All Submissions</h3>
+                                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                                        {[...pendingIAs, ...approvedIAs, ...rejectedIAs].slice(0, 10).map((ia) => (
+                                            <div key={ia.id} className="bg-white rounded shadow-sm p-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab(ia.status === 'pending' ? 'pending' : ia.status === 'approved' ? 'approved' : 'rejected')}>
+                                                {ia.pdfUrl ? (
+                                                    <div className="h-24 flex items-center justify-center overflow-hidden bg-gray-100 rounded mb-1">
+                                                        <object data={ia.pdfUrl + "#page=1&view=FitH"} type="application/pdf" className="w-full h-full">
+                                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
+                                                                PDF
+                                                            </div>
+                                                        </object>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-24 flex items-center justify-center bg-gray-100 rounded mb-1">
+                                                        <span className="text-gray-400 text-xs">No PDF</span>
+                                                    </div>
+                                                )}
+                                                <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                             <div className="bg-yellow-100 p-4 rounded shadow">
                                 <h2 className="font-bold">Pending Approvals</h2>
                                 <p className="text-2xl">{pendingIAs.length}</p>
+                                
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-medium mb-2">Waiting Review</h3>
+                                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                                        {pendingIAs.slice(0, 10).map((ia) => (
+                                            <div key={ia.id} className="bg-white rounded shadow-sm p-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('pending')}>
+                                                {ia.pdfUrl ? (
+                                                    <div className="h-24 flex items-center justify-center overflow-hidden bg-gray-100 rounded mb-1">
+                                                        <object data={ia.pdfUrl + "#page=1&view=FitH"} type="application/pdf" className="w-full h-full">
+                                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
+                                                                PDF
+                                                            </div>
+                                                        </object>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-24 flex items-center justify-center bg-gray-100 rounded mb-1">
+                                                        <span className="text-gray-400 text-xs">No PDF</span>
+                                                    </div>
+                                                )}
+                                                <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                            </div>
+                                        ))}
+                                        {pendingIAs.length === 0 && (
+                                            <div className="col-span-2 text-center py-6 text-gray-500 text-sm">
+                                                No pending submissions
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                             <div className="bg-green-100 p-4 rounded shadow">
                                 <h2 className="font-bold">Approved IAs</h2>
                                 <p className="text-2xl">{approvedIAs.length}</p>
+                                
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-medium mb-2">Published</h3>
+                                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                                        {approvedIAs.slice(0, 10).map((ia) => (
+                                            <div key={ia.id} className="bg-white rounded shadow-sm p-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('approved')}>
+                                                {ia.pdfUrl ? (
+                                                    <div className="h-24 flex items-center justify-center overflow-hidden bg-gray-100 rounded mb-1">
+                                                        <object data={ia.pdfUrl + "#page=1&view=FitH"} type="application/pdf" className="w-full h-full">
+                                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
+                                                                PDF
+                                                            </div>
+                                                        </object>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-24 flex items-center justify-center bg-gray-100 rounded mb-1">
+                                                        <span className="text-gray-400 text-xs">No PDF</span>
+                                                    </div>
+                                                )}
+                                                <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                            </div>
+                                        ))}
+                                        {approvedIAs.length === 0 && (
+                                            <div className="col-span-2 text-center py-6 text-gray-500 text-sm">
+                                                No approved submissions
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                             <div className="bg-red-100 p-4 rounded shadow">
                                 <h2 className="font-bold">Rejected IAs</h2>
                                 <p className="text-2xl">{rejectedIAs.length}</p>
+                                
+                                <div className="mt-4">
+                                    <h3 className="text-sm font-medium mb-2">Not Approved</h3>
+                                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                                        {rejectedIAs.slice(0, 10).map((ia) => (
+                                            <div key={ia.id} className="bg-white rounded shadow-sm p-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('rejected')}>
+                                                {ia.pdfUrl ? (
+                                                    <div className="h-24 flex items-center justify-center overflow-hidden bg-gray-100 rounded mb-1">
+                                                        <object data={ia.pdfUrl + "#page=1&view=FitH"} type="application/pdf" className="w-full h-full">
+                                                            <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400 text-xs">
+                                                                PDF
+                                                            </div>
+                                                        </object>
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-24 flex items-center justify-center bg-gray-100 rounded mb-1">
+                                                        <span className="text-gray-400 text-xs">No PDF</span>
+                                                    </div>
+                                                )}
+                                                <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                            </div>
+                                        ))}
+                                        {rejectedIAs.length === 0 && (
+                                            <div className="col-span-2 text-center py-6 text-gray-500 text-sm">
+                                                No rejected submissions
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -282,7 +406,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 <p className="text-gray-500">No approved IAs found.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-6 mt-4">
+                            <div className="grid grid-cols-2 gap-6 mt-4">
                                 {approvedIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-green-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-green-50">
@@ -298,7 +422,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             <div className="flex gap-2">
                                                 <button 
                                                     onClick={() => handleMoveToPending(ia.id)}
-                                                    className="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600 transition-colors"
+                                                    className="bg-yellow-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-yellow-600 transition-colors"
                                                 >
                                                     Move to Pending
                                                 </button>
@@ -310,21 +434,21 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             <div className="mb-4">
                                                 <h4 className="font-semibold mb-2">PDF Document</h4>
                                                 {ia.pdfUrl ? (
-                                                    <div className="border rounded p-2">
+                                                    <div className="inline-block border rounded p-2">
                                                         <a 
                                                             href={ia.pdfUrl} 
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-500 underline flex items-center"
+                                                            className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
                                                         >
                                                             <span>View PDF</span>
-                                                            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                                             </svg>
                                                         </a>
                                                     </div>
                                                 ) : (
-                                                    <div className="bg-gray-100 p-4 rounded text-gray-500">
+                                                    <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
                                                         No PDF available
                                                     </div>
                                                 )}
@@ -421,10 +545,10 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 <p className="text-gray-500">No pending IAs to approve at this time.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-6 mt-4">
+                            <div className="grid grid-cols-2 gap-6 mt-4">
                                 {pendingIAs.map((ia) => (
-                                    <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white">
-                                        <div className="p-4 border-b flex items-center justify-between">
+                                    <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-yellow-200">
+                                        <div className="p-4 border-b flex items-center justify-between bg-yellow-50">
                                             <div>
                                                 <h3 className="font-bold">Submission ID: {ia.id}</h3>
                                                 <p className="text-sm text-gray-500">
@@ -437,13 +561,13 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             <div className="flex gap-2">
                                                 <button 
                                                     onClick={() => handleApproveIA(ia.id)}
-                                                    className="bg-green-500 text-white px-4 py-1 rounded hover:bg-green-600"
+                                                    className="bg-green-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-green-600"
                                                 >
                                                     Approve
                                                 </button>
                                                 <button 
                                                     onClick={() => handleRejectIA(ia.id)}
-                                                    className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600"
+                                                    className="bg-red-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-red-600"
                                                 >
                                                     Reject
                                                 </button>
@@ -455,21 +579,21 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             <div className="mb-4">
                                                 <h4 className="font-semibold mb-2">PDF Document</h4>
                                                 {ia.pdfUrl ? (
-                                                    <div className="border rounded p-2">
+                                                    <div className="inline-block border rounded p-2">
                                                         <a 
                                                             href={ia.pdfUrl} 
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-500 underline flex items-center"
+                                                            className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
                                                         >
                                                             <span>View PDF</span>
-                                                            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                                             </svg>
                                                         </a>
                                                     </div>
                                                 ) : (
-                                                    <div className="bg-gray-100 p-4 rounded text-gray-500">
+                                                    <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
                                                         No PDF available
                                                     </div>
                                                 )}
@@ -566,7 +690,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 <p className="text-gray-500">No rejected IAs found.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 gap-6 mt-4">
+                            <div className="grid grid-cols-2 gap-6 mt-4">
                                 {rejectedIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-red-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-red-50">
@@ -582,7 +706,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             <div className="flex gap-2">
                                                 <button 
                                                     onClick={() => handleMoveToPending(ia.id)}
-                                                    className="bg-yellow-500 text-white px-4 py-1 rounded hover:bg-yellow-600 transition-colors"
+                                                    className="bg-yellow-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-yellow-600 transition-colors"
                                                 >
                                                     Move to Pending
                                                 </button>
@@ -591,8 +715,8 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                     disabled={isDeleting === ia.id}
                                                     className={`${isDeleting === ia.id 
                                                         ? 'bg-gray-500' 
-                                                        : 'bg-black hover:bg-gray-800'} 
-                                                        text-white px-4 py-1 rounded transition-colors`}
+                                                        : 'bg-red-500 hover:bg-red-600'} 
+                                                        text-white px-4 py-1 cursor-pointer rounded transition-colors`}
                                                 >
                                                     {isDeleting === ia.id ? 'Deleting...' : 'Remove Completely'}
                                                 </button>
@@ -604,21 +728,21 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                             <div className="mb-4">
                                                 <h4 className="font-semibold mb-2">PDF Document</h4>
                                                 {ia.pdfUrl ? (
-                                                    <div className="border rounded p-2">
+                                                    <div className="inline-block border rounded p-2">
                                                         <a 
                                                             href={ia.pdfUrl} 
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-blue-500 underline flex items-center"
+                                                            className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
                                                         >
                                                             <span>View PDF</span>
-                                                            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                                             </svg>
                                                         </a>
                                                     </div>
                                                 ) : (
-                                                    <div className="bg-gray-100 p-4 rounded text-gray-500">
+                                                    <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
                                                         No PDF available
                                                     </div>
                                                 )}
