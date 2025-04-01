@@ -85,6 +85,34 @@ export const fetchApprovedSubmissions = async (): Promise<IASubmission[]> => {
 };
 
 /**
+ * Fetch rejected submissions from Supabase
+ * @returns Array of rejected submissions
+ */
+export const fetchRejectedSubmissions = async (): Promise<IASubmission[]> => {
+  try {
+    console.log('Fetching rejected submissions from Supabase...');
+    
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('status', 'rejected')
+      .order('createdAt', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching rejected submissions:', error);
+      throw error;
+    }
+    
+    console.log(`Retrieved ${data?.length || 0} rejected submissions from Supabase`);
+    return data || [];
+    
+  } catch (error) {
+    console.error('Failed to fetch rejected submissions:', error);
+    return [];
+  }
+};
+
+/**
  * Format submissions for gallery display
  * @param submissions Raw submissions from Supabase
  * @returns Formatted submissions for gallery display
