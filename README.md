@@ -81,6 +81,7 @@ Blueprint Gallery is a specialized application designed to showcase student IA (
    - createdAt (timestamp)
    - pdfUrl (text)
    - imageUrls (array)
+   - description (text)
 3. Create a 'submissions' storage bucket for files
 
 ## Usage
