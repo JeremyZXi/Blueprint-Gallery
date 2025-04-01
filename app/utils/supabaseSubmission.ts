@@ -14,6 +14,7 @@ export interface IASubmission {
   createdAt: string;
   pdfUrl: string;
   imageUrls: string[];
+  description: string;
 }
 
 /**
@@ -147,6 +148,7 @@ export const handleSubmission = async (
     function: string[];
     pdf: File | null;
     images: File[];
+    description?: string;
   },
   updateProgress: (progress: number) => void
 ): Promise<{ id: string; pdfUrl: string; imageUrls: string[] }> => {
@@ -205,7 +207,8 @@ export const handleSubmission = async (
       status: "pending",
       createdAt: new Date().toISOString(),
       pdfUrl,
-      imageUrls
+      imageUrls,
+      description: formData.description || ""
     };
     
     // Save submission data to Supabase

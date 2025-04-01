@@ -1,8 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cormorant:wght@300;400;500;600;700&family=EB+Garamond:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+@layer base {
+  .font-heading {
+    font-family: 'Cinzel Decorative', serif;
+  }
+  .font-subheading {
+    font-family: 'Cormorant', serif;
+  }
+
+  body {
+    font-family: 'EB Garamond', serif;
+  }
 }
 
 html,

@@ -7,5 +7,7 @@ export default [
     { path: "/gallery", file: "routes/gallery.tsx"},
     { path: "/api/approveIA", file: "routes/api.approveIA.tsx" },
     { path: "/api/rejectIA", file: "routes/api.rejectIA.tsx" },
-    { path: "/api/submitIA", file: "routes/api.submitIA.tsx" }
+    { path: "/api/submitIA", file: "routes/api.submitIA.tsx" },
+    { path: "/api/updateSubmission", file: "routes/api.updateSubmission.tsx" },
+    { path: "/api/deleteSubmissionImage", file: "routes/api.deleteSubmissionImage.tsx" }
 ] satisfies RouteConfig;

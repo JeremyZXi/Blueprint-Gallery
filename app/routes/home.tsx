@@ -1,6 +1,10 @@
 import type { Route } from "./+types/home";
 import Layout from "../components/Layout";
-
+import React, { useState } from 'react';
+import { useInView } from 'react-intersection-observer';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import Spotlight from "../components/Spotlight.tsx";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Blueprint Gallery" },
@@ -8,65 +12,224 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export default function Home() {
+
+const Home = () => {
+  const navigate = useNavigate();
+
   return (
-    <Layout>
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-white to-blue-50 p-6">
-        <h1 className="text-5xl font-bold mb-8 text-center text-blue-800">Blueprint Gallery</h1>
-        <p className="text-xl mb-10 text-center max-w-2xl text-gray-600">
-          Explore innovative IA projects or submit your own design to our growing collection.
-        </p>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-          {/* Gallery Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform hover:scale-105">
-            <div className="h-48 bg-blue-200 flex items-center justify-center">
-              <span className="text-5xl">🔍</span>
+      <div className="bg-[#bbcdd6]">
+        <Layout>
+        <Hero />
+        <section className="text-[#141c27] body-font">
+          <div className="container py-12 mx-auto">
+            <div className="lg:w-2/3 sm:flex-row sm:items-center items-start mx-auto">
+              <InViewMotion>
+                <motion.h1
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="flex-grow sm:pr-16 text-4xl font-body title-font text-[#141c27]"
+                >
+                  Title
+                </motion.h1>
+              </InViewMotion>
             </div>
-            <div className="p-6">
-              <h2 className="text-2xl font-bold mb-2">Browse Gallery</h2>
-              <p className="text-gray-600 mb-4">
-                Explore our collection of innovative design projects.
-              </p>
-              <a
-                href="/gallery"
-                className="block w-full py-2 text-center bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                View Gallery
-              </a>
-            </div>
-          </div>
-          
-          {/* Submit Card */}
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-transform hover:scale-105">
-            <div className="h-48 bg-green-200 flex items-center justify-center">
-              <span className="text-5xl">📤</span>
-            </div>
-            <div className="p-6">
-              <h2 className="text-2xl font-bold mb-2">Submit Your IA</h2>
-              <p className="text-gray-600 mb-4">
-                Share your design project with the community.
-              </p>
-              <a
-                href="/submit"
-                className="block w-full py-2 text-center bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-              >
-                Submit Project
-              </a>
+            <div className="lg:w-2/3 sm:flex-row sm:items-center items-start mx-auto">
+              <InViewMotion>
+                <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="flex-grow sm:pr-16 text-2xl font-body title-font text-[#141c27] mt-4"
+                >
+                  Description of the website function<br />
+                  Description of the website function<br />
+                  Description of the website function
+                </motion.p>
+              </InViewMotion>
             </div>
           </div>
-        </div>
-        
-        {/* Admin Link (smaller, at bottom) */}
-        <div className="mt-12">
-          <a
-            href="/admin"
-            className="text-sm text-gray-500 hover:text-gray-700 underline"
+        </section>
+        <Works />
+        <Spotlight/>
+        </Layout>
+      </div>
+  );
+};
+// InView 动画包装组件
+const InViewMotion = ({ children }) => {
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.2,
+  });
+
+  return (
+      <div ref={ref}>
+        <AnimatePresence>
+          {inView && children}
+        </AnimatePresence>
+      </div>
+  );
+};
+
+// Hero 组件
+const Hero = () => {
+  const navigate = useNavigate();
+
+  return (
+      <div className="bg-[#bbcdd6] min-h-screen">
+        <div className="bg-[url(https://placehold.co/600x400)] bg-no-repeat bg-cover bg-center min-h-screen">
+          <div className="min-h-screen flex items-center justify-left">
+            <div className="text-left px-14 w-full">
+              <motion.h1
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8 }}
+                  className="font-heading font-bold text-5xl md:text-6xl lg:text-7xl text-white mb-6 py-7"
+              >
+                Blueprint <br />Gallery
+              </motion.h1>
+              <motion.p
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.2 }}
+                  className="text-right text-5xl md:text-3xl text-white mt-4 pr-20 py-7"
+              >
+                DESIGNING THE FUTURE<br />
+                ONE BLUEPRINT AT A TIME
+              </motion.p>
+            </div>
+          </div>
+          <motion.div
+              className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
+              animate={{
+                y: [0, 10, 0],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
           >
-            Admin Access
-          </a>
+            <svg
+                className="w-8 h-8 text-white"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+            >
+              <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+            </svg>
+          </motion.div>
         </div>
       </div>
-    </Layout>
   );
-}
+};
+
+// Works 组件
+const Works = () => {
+  const navigate = useNavigate(); // 添加 useNavigate hook
+  const [hoveredTab, setHoveredTab] = useState(null);
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.2,
+  });
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { duration: 1, staggerChildren: 0.2 }
+    }
+  };
+
+  const childVariants = {
+    hidden: { y: 50, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: 0.8 }
+    }
+  };
+
+  // 添加路由路径到卡片数据中
+  const cards = [
+    {
+      title: 'MYP Work',
+      color: '#475569',
+      path: '/myp-work'
+    },
+    {
+      title: 'DP Work',
+      color: '#475569',
+      path: '/dp-work'
+    },
+    {
+      title: 'Internal\nAssessment',
+      color: '#475569',
+      path: '/internal-assessment'
+    }
+  ];
+
+  // 处理卡片点击
+  const handleCardClick = (path) => {
+    navigate(path);
+  };
+
+  return (
+      <motion.div
+          ref={ref}
+          className="w-full p-8"
+          variants={containerVariants}
+          initial="hidden"
+          animate={inView ? "visible" : "hidden"}
+      >
+        <motion.div
+            className="container mx-auto flex flex-wrap justify-center gap-6"
+            variants={childVariants}
+        >
+          {cards.map((card, index) => (
+              <motion.div
+                  key={index}
+                  className="w-full md:w-[300px] aspect-square rounded-lg overflow-hidden cursor-pointer"
+                  style={{ backgroundColor: card.color }}
+                  whileHover={{ scale: 1.05 }}
+                  onMouseEnter={() => setHoveredTab(index)}
+                  onMouseLeave={() => setHoveredTab(null)}
+                  onClick={() => handleCardClick(card.path)} // 添加点击处理
+                  variants={childVariants}
+              >
+                <div className="p-6 w-full h-full flex flex-col items-center justify-center text-white">
+                  <div className="w-16 h-1 bg-white mb-4"></div>
+                  <h2 className="text-3xl font-serif text-center">{card.title}</h2>
+                  <div className="w-16 h-1 bg-white mt-4"></div>
+                  {/* 可选：添加一个提示用户可点击的图标 */}
+                  <motion.svg
+                      className="w-6 h-6 mt-4"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: hoveredTab === index ? 1 : 0 }}
+                  >
+                    <path d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                  </motion.svg>
+                </div>
+              </motion.div>
+          ))}
+        </motion.div>
+      </motion.div>
+  );
+};
+
+// StudentSpotlight 组件
+
+
+
+
+export default Home;

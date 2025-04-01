@@ -19,6 +19,7 @@ interface FormData {
     gradeLevel: string;
     email: string;
     title: string;
+    description: string;
     material: string[];
     color: string[];
     function: string[];
@@ -33,6 +34,7 @@ const Submission = () => {
         gradeLevel: "",
         email: "",
         title: "",
+        description: "",
         material: [],
         color: [],
         function: [],
@@ -44,7 +46,7 @@ const Submission = () => {
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<"untested" | "success" | "failed">("untested");
 
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
@@ -123,6 +125,7 @@ const Submission = () => {
                 gradeLevel: "",
                 email: "",
                 title: "",
+                description: "",
                 material: [],
                 color: [],
                 function: [],
@@ -248,12 +251,26 @@ const Submission = () => {
                     onChange={handleInputChange}
                     disabled={isSubmitting}
                 />
+            </div>
+            
+            <div className="mt-4">
                 <input 
                     type="text" 
                     name="title" 
                     value={formData.title}
-                    placeholder="IA Title" 
-                    className="border p-2 rounded col-span-2"
+                    placeholder="Project Title" 
+                    className="border p-2 rounded w-full"
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                />
+            </div>
+            
+            <div className="mt-4">
+                <textarea 
+                    name="description" 
+                    value={formData.description}
+                    placeholder="Project Description (optional)" 
+                    className="border p-2 rounded w-full h-32"
                     onChange={handleInputChange}
                     disabled={isSubmitting}
                 />

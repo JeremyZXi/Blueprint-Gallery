@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { fetchPendingSubmissions, fetchApprovedSubmissions, fetchRejectedSubmissions } from "../utils/fetchSupabase";
 import type { IASubmission } from "../utils/supabaseSubmission";
 import { supabase } from "../utils/supabase";
+import { X, Edit, Save, Trash2, Check, ArrowUp, ArrowDown, Plus } from "lucide-react";
+import toast from "react-hot-toast";
 
 interface AdminPanelProps {
     ias: IASubmission[];
@@ -14,6 +16,40 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
     const [rejectedIAs, setRejectedIAs] = useState<IASubmission[]>([]);
     const [loading, setLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [editFormData, setEditFormData] = useState<Partial<IASubmission>>({
+        title: "",
+        description: "",
+        material: [],
+        color: [],
+        function: [],
+        imageUrls: []
+    });
+    const [removingImage, setRemovingImage] = useState<string | null>(null);
+    const [editingSubmission, setEditingSubmission] = useState<IASubmission | null>(null);
+    const [formData, setFormData] = useState<Partial<IASubmission>>({
+        title: "",
+        description: "",
+        material: [],
+        color: [],
+        function: [],
+        imageUrls: []
+    });
+    const [isImageDeleting, setIsImageDeleting] = useState(false);
+
+    // Available filter categories for tag editing
+    const filterCategories = {
+        material: ["Alloy", "Wood", "Plastic", "Glass", "Fabric", "Composite"],
+        color: ["Red", "Blue", "Green", "Black", "White", "Yellow"],
+        function: [
+          "Organization & Storage",
+          "Life Improvement & Decor",
+          "Health & Wellness",
+          "Innovative Gadgets & Tools",
+          "Accessibility & Mobility Solutions"
+        ]
+    };
 
     useEffect(() => {
         // Fetch IAs for the active tab
@@ -220,6 +256,378 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         }
     };
 
+    // New functions for editing submission details
+    const handleEditSubmission = (submission: IASubmission) => {
+        console.log('Starting edit for submission:', submission);
+        
+        // Make a copy of the submission data for editing
+        const initialFormData = {
+            title: submission.title || '',
+            description: submission.description || '',
+            material: submission.material ? [...submission.material] : [],
+            color: submission.color ? [...submission.color] : [],
+            function: submission.function ? [...submission.function] : [],
+            imageUrls: submission.imageUrls ? [...submission.imageUrls] : []
+        };
+        
+        console.log('Setting initial form data:', initialFormData);
+        
+        setEditingId(submission.id || null);
+        setEditingSubmission(submission);
+        setFormData(initialFormData);
+        setEditFormData(initialFormData);
+    };
+
+    const handleCancelEdit = () => {
+        console.log('Canceling edit');
+        setEditingId(null);
+        setEditingSubmission(null);
+        setFormData({
+            title: "",
+            description: "",
+            material: [],
+            color: [],
+            function: [],
+            imageUrls: []
+        });
+        setEditFormData({
+            title: "",
+            description: "",
+            material: [],
+            color: [],
+            function: [],
+            imageUrls: []
+        });
+    };
+
+    const handleUpdateSubmission = async (e: React.FormEvent<Element>) => {
+        e.preventDefault();
+        
+        if (!editingSubmission || !editingSubmission.id) return;
+        
+        setIsUpdating(true);
+        
+        try {
+            // Get admin password from session storage
+            const adminPassword = window.sessionStorage.getItem('adminPassword') || '';
+            
+            console.log('Using admin password:', adminPassword ? '[Password found]' : '[No password]');
+            
+            // Log the data being sent to the API
+            console.log('Sending update data:', {
+                id: editingSubmission.id,
+                title: editFormData.title,
+                description: editFormData.description,
+                material: editFormData.material,
+                color: editFormData.color,
+                function: editFormData.function,
+                imageUrls: editFormData.imageUrls
+            });
+            
+            // Use the correct API endpoint path based on the route config
+            const response = await fetch('/api/updateSubmission', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: editingSubmission.id,
+                    title: editFormData.title,
+                    description: editFormData.description,
+                    material: editFormData.material,
+                    color: editFormData.color,
+                    function: editFormData.function,
+                    imageUrls: editFormData.imageUrls,
+                    password: adminPassword
+                }),
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                try {
+                    // Try to parse as JSON
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(`Error updating submission: ${errorJson.error || 'Unknown error'}`);
+                } catch (jsonError) {
+                    // If not JSON, use text
+                    throw new Error(`Server returned non-JSON response (${response.status}: ${response.statusText})`);
+                }
+            }
+            
+            const data = await response.json();
+            
+            // Update the list with the edited data based on submission status
+            if (editingSubmission.status === 'approved') {
+                setApprovedIAs(
+                    approvedIAs.map((sub) =>
+                        sub.id === editingSubmission.id
+                            ? { ...sub, ...editFormData }
+                            : sub
+                    )
+                );
+            } else if (editingSubmission.status === 'pending') {
+                setPendingIAs(
+                    pendingIAs.map((sub) =>
+                        sub.id === editingSubmission.id
+                            ? { ...sub, ...editFormData }
+                            : sub
+                    )
+                );
+            }
+            
+            setEditingId(null);
+            setEditingSubmission(null);
+            setFormData({
+                title: "",
+                description: "",
+                material: [],
+                color: [],
+                function: [],
+                imageUrls: []
+            });
+            setEditFormData({
+                title: "",
+                description: "",
+                material: [],
+                color: [],
+                function: [],
+                imageUrls: []
+            });
+            toast.success('Submission updated successfully!');
+        } catch (error) {
+            console.error('Update error:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to update submission');
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        console.log(`Form field changed: ${name} = ${value}`);
+        
+        // Fix: Clone the previous state first, then modify it
+        setEditFormData(prev => {
+            // Create a deep copy of the previous state
+            const prevCopy = JSON.parse(JSON.stringify(prev));
+            
+            // Update the specific field
+            const updated = {
+                ...prevCopy,
+                [name]: value
+            };
+            
+            console.log('Updated editFormData:', updated);
+            return updated;
+        });
+    };
+
+    const handleTagToggle = (category: string, value: string) => {
+        console.log(`Toggling tag: ${category} - ${value}`);
+        
+        // Fix: Clone the previous state first, then modify it
+        setEditFormData(prev => {
+            // Create a deep copy of the previous state
+            const prevCopy = JSON.parse(JSON.stringify(prev));
+            
+            // Ensure we're working with an array
+            const currentTags = Array.isArray(prevCopy[category]) 
+                ? prevCopy[category] 
+                : [];
+            
+            // If tag exists, remove it; otherwise, add it
+            const updatedTags = currentTags.includes(value) 
+                ? currentTags.filter(tag => tag !== value)
+                : [...currentTags, value];
+            
+            // Create the new state
+            const updated = {
+                ...prevCopy,
+                [category]: updatedTags
+            };
+            
+            console.log(`Updated ${category} tags:`, updatedTags);
+            console.log('Updated editFormData:', updated);
+            return updated;
+        });
+    };
+
+    const handleDeleteImage = async (imageUrl: string) => {
+        if (!editingSubmission) return;
+
+        setIsImageDeleting(true);
+
+        try {
+            const adminPassword = window.sessionStorage.getItem('adminPassword') || '';
+            
+            // Use the API endpoint in the routes directory structure
+            const response = await fetch('/api/deleteSubmissionImage', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: editingSubmission.id,
+                    imageUrl,
+                    password: adminPassword
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                try {
+                    // Try to parse as JSON
+                    const errorJson = JSON.parse(errorText);
+                    throw new Error(`Error deleting image: ${errorJson.error || 'Unknown error'}`);
+                } catch (jsonError) {
+                    // If not JSON, use text
+                    throw new Error(`Server returned non-JSON response (${response.status}: ${response.statusText})`);
+                }
+            }
+
+            const data = await response.json();
+            
+            // Update UI with the new image list
+            const updatedImageUrls = formData.imageUrls?.filter(url => url !== imageUrl) || [];
+            
+            // Update both state variables
+            setFormData({
+                ...formData,
+                imageUrls: updatedImageUrls
+            });
+            
+            setEditFormData({
+                ...editFormData,
+                imageUrls: updatedImageUrls
+            });
+
+            // If we're editing the same submission that's in the approved list, update that too
+            if (editingSubmission.status === 'approved') {
+                setApprovedIAs(
+                    approvedIAs.map((sub) =>
+                        sub.id === editingSubmission.id
+                            ? { ...sub, imageUrls: updatedImageUrls }
+                            : sub
+                    )
+                );
+            } else if (editingSubmission.status === 'pending') {
+                setPendingIAs(
+                    pendingIAs.map((sub) =>
+                        sub.id === editingSubmission.id
+                            ? { ...sub, imageUrls: updatedImageUrls }
+                            : sub
+                    )
+                );
+            }
+
+            toast.success('Image deleted successfully!');
+        } catch (error) {
+            console.error('Image deletion error:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to delete image');
+        } finally {
+            setIsImageDeleting(false);
+        }
+    };
+
+    const handleMoveImage = (submissionId: string, imageUrl: string, direction: 'up' | 'down') => {
+        // First find which list the submission belongs to
+        const approvedSubmission = approvedIAs.find(ia => ia.id === submissionId);
+        const pendingSubmission = pendingIAs.find(ia => ia.id === submissionId);
+        
+        if (approvedSubmission) {
+            // Update the approved list
+            setApprovedIAs(prev => {
+                return prev.map(ia => {
+                    if (ia.id !== submissionId) return ia;
+                    
+                    const newImageUrls = [...ia.imageUrls];
+                    const currentIndex = newImageUrls.indexOf(imageUrl);
+                    
+                    if (currentIndex === -1) return ia;
+                    
+                    if (direction === 'up' && currentIndex > 0) {
+                        // Swap with previous image
+                        [newImageUrls[currentIndex], newImageUrls[currentIndex - 1]] = 
+                        [newImageUrls[currentIndex - 1], newImageUrls[currentIndex]];
+                    } else if (direction === 'down' && currentIndex < newImageUrls.length - 1) {
+                        // Swap with next image
+                        [newImageUrls[currentIndex], newImageUrls[currentIndex + 1]] = 
+                        [newImageUrls[currentIndex + 1], newImageUrls[currentIndex]];
+                    }
+                    
+                    // If we're currently editing this submission, update both form data variables
+                    if (editingId === submissionId) {
+                        setFormData(prev => ({
+                            ...prev,
+                            imageUrls: newImageUrls
+                        }));
+                        
+                        setEditFormData(prev => ({
+                            ...prev,
+                            imageUrls: newImageUrls
+                        }));
+                    }
+                    
+                    return {
+                        ...ia,
+                        imageUrls: newImageUrls
+                    };
+                });
+            });
+        } else if (pendingSubmission) {
+            // Update the pending list
+            setPendingIAs(prev => {
+                return prev.map(ia => {
+                    if (ia.id !== submissionId) return ia;
+                    
+                    const newImageUrls = [...ia.imageUrls];
+                    const currentIndex = newImageUrls.indexOf(imageUrl);
+                    
+                    if (currentIndex === -1) return ia;
+                    
+                    if (direction === 'up' && currentIndex > 0) {
+                        // Swap with previous image
+                        [newImageUrls[currentIndex], newImageUrls[currentIndex - 1]] = 
+                        [newImageUrls[currentIndex - 1], newImageUrls[currentIndex]];
+                    } else if (direction === 'down' && currentIndex < newImageUrls.length - 1) {
+                        // Swap with next image
+                        [newImageUrls[currentIndex], newImageUrls[currentIndex + 1]] = 
+                        [newImageUrls[currentIndex + 1], newImageUrls[currentIndex]];
+                    }
+                    
+                    // If we're currently editing this submission, update both form data variables
+                    if (editingId === submissionId) {
+                        setFormData(prev => ({
+                            ...prev,
+                            imageUrls: newImageUrls
+                        }));
+                        
+                        setEditFormData(prev => ({
+                            ...prev,
+                            imageUrls: newImageUrls
+                        }));
+                    }
+                    
+                    return {
+                        ...ia,
+                        imageUrls: newImageUrls
+                    };
+                });
+            });
+        }
+    };
+
+    // Debugging: Log the current editing state
+    console.log('Debug - Current editing state:', {
+        editingId,
+        formData,
+        editFormData,
+        editingSubmission: editingSubmission ? {
+            id: editingSubmission.id,
+            title: editingSubmission.title
+        } : null
+    });
+
     return (
         <div className="flex">
             {/* Left Sidebar Navigation */}
@@ -395,7 +803,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 {activeTab === "approved" && (
                     <div>
                         <h1 className="text-2xl font-bold">Approved IA Submissions</h1>
-                        <p className="mb-4">View and manage approved IA submissions.</p>
+                        <p className="mb-4">View, edit, and manage approved IA submissions.</p>
                         
                         {loading ? (
                             <div className="flex justify-center my-8">
@@ -406,7 +814,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 <p className="text-gray-500">No approved IAs found.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-6 mt-4">
+                            <div className="grid grid-cols-1 gap-6 mt-4">
                                 {approvedIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-green-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-green-50">
@@ -420,72 +828,300 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 </p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button 
-                                                    onClick={() => handleMoveToPending(ia.id)}
-                                                    className="bg-yellow-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-yellow-600 transition-colors"
-                                                >
-                                                    Move to Pending
-                                                </button>
+                                                {editingId !== ia.id ? (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleEditSubmission(ia)}
+                                                            className="bg-blue-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-blue-600 transition-colors flex items-center"
+                                                        >
+                                                            <Edit className="w-4 h-4 mr-1" />
+                                                            Edit
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleMoveToPending(ia.id)}
+                                                            className="bg-yellow-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-yellow-600 transition-colors"
+                                                        >
+                                                            Move to Pending
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button 
+                                                            onClick={(e) => handleUpdateSubmission(e)}
+                                                            disabled={isUpdating}
+                                                            className={`${isUpdating 
+                                                                ? 'bg-gray-400' 
+                                                                : 'bg-green-500 hover:bg-green-600'} 
+                                                                text-white px-4 py-1 cursor-pointer rounded transition-colors flex items-center`}
+                                                        >
+                                                            <Save className="w-4 h-4 mr-1" />
+                                                            {isUpdating ? 'Saving...' : 'Save Changes'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleCancelEdit}
+                                                            className="bg-gray-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-gray-600 transition-colors flex items-center"
+                                                        >
+                                                            <X className="w-4 h-4 mr-1" />
+                                                            Cancel
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                         
-                                        <div className="p-4 grid grid-cols-1 md:grid-cols-2">
-                                            {/* PDF Preview */}
-                                            <div className="mb-4">
-                                                <h4 className="font-semibold mb-2">PDF Document</h4>
-                                                {ia.pdfUrl ? (
-                                                    <div className="inline-block border rounded p-2">
-                                                        <a 
-                                                            href={ia.pdfUrl} 
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
-                                                        >
-                                                            <span>View PDF</span>
-                                                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                            </svg>
-                                                        </a>
+                                        {editingId === ia.id ? (
+                                            <div className="p-4">
+                                                <h4 className="font-semibold mb-3">Edit Project Details</h4>
+                                                
+                                                <div className="mb-4">
+                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
+                                                        Project Title
+                                                    </label>
+                                                    <input
+                                                        id="title"
+                                                        name="title"
+                                                        type="text"
+                                                        value={editFormData.title || ''}
+                                                        onChange={handleFormChange}
+                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="mb-4">
+                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
+                                                        Project Description
+                                                    </label>
+                                                    <textarea
+                                                        id="description"
+                                                        name="description"
+                                                        value={editFormData.description || ''}
+                                                        onChange={handleFormChange}
+                                                        rows={4}
+                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                        placeholder="Enter a description of the project"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    {/* Materials selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                            Materials
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.material.map(mat => (
+                                                                <button 
+                                                                    key={mat}
+                                                                    type="button"
+                                                                    onClick={() => handleTagToggle('material', mat)}
+                                                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                        editFormData.material?.includes(mat)
+                                                                            ? "bg-blue-500 text-white"
+                                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {editFormData.material?.includes(mat) ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                    {mat}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
-                                                        No PDF available
+                                                    
+                                                    {/* Colors selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                            Colors
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.color.map(col => (
+                                                                <button 
+                                                                    key={col}
+                                                                    type="button"
+                                                                    onClick={() => handleTagToggle('color', col)}
+                                                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                        editFormData.color?.includes(col)
+                                                                            ? "bg-purple-500 text-white"
+                                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {editFormData.color?.includes(col) ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                    {col}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                )}
+                                                    
+                                                    {/* Functions selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                            Functions
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.function.map(func => (
+                                                                <button 
+                                                                    key={func}
+                                                                    type="button"
+                                                                    onClick={() => handleTagToggle('function', func)}
+                                                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                        editFormData.function?.includes(func)
+                                                                            ? "bg-green-500 text-white"
+                                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {editFormData.function?.includes(func) ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                    {func}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Images Manager */}
+                                                <div className="mb-4">
+                                                    <h5 className="text-gray-700 text-sm font-bold mb-2">
+                                                        Images Manager
+                                                    </h5>
+                                                    <p className="text-sm text-gray-500 mb-3">
+                                                        Reorder or delete images. The first image will be used as the thumbnail.
+                                                    </p>
+                                                    
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {ia.imageUrls && ia.imageUrls.length > 0 ? (
+                                                            ia.imageUrls.map((img, idx) => (
+                                                                <div 
+                                                                    key={img}
+                                                                    className="relative border rounded overflow-hidden group"
+                                                                >
+                                                                    <img 
+                                                                        src={img} 
+                                                                        alt={`Image ${idx + 1}`}
+                                                                        className="w-full h-32 object-cover"
+                                                                    />
+                                                                    
+                                                                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                        <div className="flex gap-1">
+                                                                            {idx > 0 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleMoveImage(ia.id || '', img, 'up')}
+                                                                                    className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700"
+                                                                                    title="Move up"
+                                                                                >
+                                                                                    <ArrowUp className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            
+                                                                            {idx < ia.imageUrls.length - 1 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleMoveImage(ia.id || '', img, 'down')}
+                                                                                    className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700"
+                                                                                    title="Move down"
+                                                                                >
+                                                                                    <ArrowDown className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDeleteImage(img)}
+                                                                                disabled={isImageDeleting}
+                                                                                className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
+                                                                                title="Delete image"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    {isImageDeleting && (
+                                                                        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
+                                                                            <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"></div>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {idx === 0 && (
+                                                                        <div className="absolute top-0 left-0 bg-blue-500 text-white text-xs px-2 py-1">
+                                                                            Thumbnail
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="col-span-4 bg-gray-100 p-4 rounded text-gray-500 text-center">
+                                                                No images available
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            
-                                            {/* Images Preview */}
-                                            <div>
-                                                <h4 className="font-semibold mb-2">Uploaded Images</h4>
-                                                {ia.imageUrls && ia.imageUrls.length > 0 ? (
-                                                    <div className="grid grid-cols-3 gap-2">
-                                                        {ia.imageUrls.map((img, idx) => (
+                                        ) : (
+                                            <div className="p-4 grid grid-cols-1 md:grid-cols-2">
+                                                {/* PDF Preview */}
+                                                <div className="mb-4">
+                                                    <h4 className="font-semibold mb-2">PDF Document</h4>
+                                                    {ia.pdfUrl ? (
+                                                        <div className="inline-block border rounded p-2">
                                                             <a 
-                                                                key={idx}
-                                                                href={img}
+                                                                href={ia.pdfUrl} 
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="block h-20 bg-gray-100 border rounded overflow-hidden"
+                                                                className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
                                                             >
-                                                                <img 
-                                                                    src={img} 
-                                                                    alt={`Preview ${idx + 1}`}
-                                                                    className="w-full h-full object-cover"
-                                                                />
+                                                                <span>View PDF</span>
+                                                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                </svg>
                                                             </a>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="bg-gray-100 p-4 rounded text-gray-500">
-                                                        No images available
-                                                    </div>
-                                                )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
+                                                            No PDF available
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Images Preview */}
+                                                <div>
+                                                    <h4 className="font-semibold mb-2">Uploaded Images</h4>
+                                                    {ia.imageUrls && ia.imageUrls.length > 0 ? (
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            {ia.imageUrls.map((img, idx) => (
+                                                                <a 
+                                                                    key={idx}
+                                                                    href={img}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="block h-20 bg-gray-100 border rounded overflow-hidden"
+                                                                >
+                                                                    <img 
+                                                                        src={img} 
+                                                                        alt={`Preview ${idx + 1}`}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-100 p-4 rounded text-gray-500">
+                                                            No images available
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                         
                                         {/* Metadata */}
                                         <div className="p-4 border-t">
                                             <h4 className="font-semibold mb-2">Project Details</h4>
+                                            
+                                            {ia.description && (
+                                                <div className="mb-4">
+                                                    <h5 className="text-sm font-medium text-gray-700">Description</h5>
+                                                    <p className="text-sm text-gray-600 mt-1">{ia.description}</p>
+                                                </div>
+                                            )}
+                                            
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div>
                                                     <h5 className="text-sm font-medium text-gray-700">Materials</h5>
@@ -534,7 +1170,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 {activeTab === "pending" && (
                     <div>
                         <h1 className="text-2xl font-bold">Pending IA Approvals</h1>
-                        <p className="mb-4">Review and approve/reject submitted IAs.</p>
+                        <p className="mb-4">Review, edit, and approve/reject submitted IAs.</p>
                         
                         {loading ? (
                             <div className="flex justify-center my-8">
@@ -545,7 +1181,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 <p className="text-gray-500">No pending IAs to approve at this time.</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-6 mt-4">
+                            <div className="grid grid-cols-1 gap-6 mt-4">
                                 {pendingIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-yellow-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-yellow-50">
@@ -559,78 +1195,306 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 </p>
                                             </div>
                                             <div className="flex gap-2">
-                                                <button 
-                                                    onClick={() => handleApproveIA(ia.id)}
-                                                    className="bg-green-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-green-600"
-                                                >
-                                                    Approve
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleRejectIA(ia.id)}
-                                                    className="bg-red-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-red-600"
-                                                >
-                                                    Reject
-                                                </button>
+                                                {editingId !== ia.id ? (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleEditSubmission(ia)}
+                                                            className="bg-blue-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-blue-600 transition-colors flex items-center"
+                                                        >
+                                                            <Edit className="w-4 h-4 mr-1" />
+                                                            Edit
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleApproveIA(ia.id)}
+                                                            className="bg-green-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-green-600"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleRejectIA(ia.id)}
+                                                            className="bg-red-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-red-600"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button 
+                                                            onClick={(e) => handleUpdateSubmission(e)}
+                                                            disabled={isUpdating}
+                                                            className={`${isUpdating 
+                                                                ? 'bg-gray-400' 
+                                                                : 'bg-green-500 hover:bg-green-600'} 
+                                                                text-white px-4 py-1 cursor-pointer rounded transition-colors flex items-center`}
+                                                        >
+                                                            <Save className="w-4 h-4 mr-1" />
+                                                            {isUpdating ? 'Saving...' : 'Save Changes'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleCancelEdit}
+                                                            className="bg-gray-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-gray-600 transition-colors flex items-center"
+                                                        >
+                                                            <X className="w-4 h-4 mr-1" />
+                                                            Cancel
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                         
-                                        <div className="p-4 grid grid-cols-1 md:grid-cols-2">
-                                            {/* PDF Preview */}
-                                            <div className="mb-4">
-                                                <h4 className="font-semibold mb-2">PDF Document</h4>
-                                                {ia.pdfUrl ? (
-                                                    <div className="inline-block border rounded p-2">
-                                                        <a 
-                                                            href={ia.pdfUrl} 
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
-                                                        >
-                                                            <span>View PDF</span>
-                                                            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                            </svg>
-                                                        </a>
+                                        {editingId === ia.id ? (
+                                            <div className="p-4">
+                                                <h4 className="font-semibold mb-3">Edit Project Details</h4>
+                                                
+                                                <div className="mb-4">
+                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
+                                                        Project Title
+                                                    </label>
+                                                    <input
+                                                        id="title"
+                                                        name="title"
+                                                        type="text"
+                                                        value={editFormData.title || ''}
+                                                        onChange={handleFormChange}
+                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="mb-4">
+                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
+                                                        Project Description
+                                                    </label>
+                                                    <textarea
+                                                        id="description"
+                                                        name="description"
+                                                        value={editFormData.description || ''}
+                                                        onChange={handleFormChange}
+                                                        rows={4}
+                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                        placeholder="Enter a description of the project"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    {/* Materials selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                            Materials
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.material.map(mat => (
+                                                                <button 
+                                                                    key={mat}
+                                                                    type="button"
+                                                                    onClick={() => handleTagToggle('material', mat)}
+                                                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                        editFormData.material?.includes(mat)
+                                                                            ? "bg-blue-500 text-white"
+                                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {editFormData.material?.includes(mat) ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                    {mat}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
-                                                        No PDF available
+                                                    
+                                                    {/* Colors selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                            Colors
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.color.map(col => (
+                                                                <button 
+                                                                    key={col}
+                                                                    type="button"
+                                                                    onClick={() => handleTagToggle('color', col)}
+                                                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                        editFormData.color?.includes(col)
+                                                                            ? "bg-purple-500 text-white"
+                                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {editFormData.color?.includes(col) ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                    {col}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                )}
+                                                    
+                                                    {/* Functions selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                            Functions
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.function.map(func => (
+                                                                <button 
+                                                                    key={func}
+                                                                    type="button"
+                                                                    onClick={() => handleTagToggle('function', func)}
+                                                                    className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                        editFormData.function?.includes(func)
+                                                                            ? "bg-green-500 text-white"
+                                                                            : "bg-gray-200 hover:bg-gray-300"
+                                                                    }`}
+                                                                >
+                                                                    {editFormData.function?.includes(func) ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                    {func}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Images Manager */}
+                                                <div className="mb-4">
+                                                    <h5 className="text-gray-700 text-sm font-bold mb-2">
+                                                        Images Manager
+                                                    </h5>
+                                                    <p className="text-sm text-gray-500 mb-3">
+                                                        Reorder or delete images. The first image will be used as the thumbnail.
+                                                    </p>
+                                                    
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {ia.imageUrls && ia.imageUrls.length > 0 ? (
+                                                            ia.imageUrls.map((img, idx) => (
+                                                                <div 
+                                                                    key={img}
+                                                                    className="relative border rounded overflow-hidden group"
+                                                                >
+                                                                    <img 
+                                                                        src={img} 
+                                                                        alt={`Image ${idx + 1}`}
+                                                                        className="w-full h-32 object-cover"
+                                                                    />
+                                                                    
+                                                                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                        <div className="flex gap-1">
+                                                                            {idx > 0 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleMoveImage(ia.id || '', img, 'up')}
+                                                                                    className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700"
+                                                                                    title="Move up"
+                                                                                >
+                                                                                    <ArrowUp className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            
+                                                                            {idx < ia.imageUrls.length - 1 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleMoveImage(ia.id || '', img, 'down')}
+                                                                                    className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700"
+                                                                                    title="Move down"
+                                                                                >
+                                                                                    <ArrowDown className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDeleteImage(img)}
+                                                                                disabled={isImageDeleting}
+                                                                                className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
+                                                                                title="Delete image"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    {isImageDeleting && (
+                                                                        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
+                                                                            <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"></div>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {idx === 0 && (
+                                                                        <div className="absolute top-0 left-0 bg-blue-500 text-white text-xs px-2 py-1">
+                                                                            Thumbnail
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="col-span-4 bg-gray-100 p-4 rounded text-gray-500 text-center">
+                                                                No images available
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            
-                                            {/* Images Preview */}
-                                            <div>
-                                                <h4 className="font-semibold mb-2">Uploaded Images</h4>
-                                                {ia.imageUrls && ia.imageUrls.length > 0 ? (
-                                                    <div className="grid grid-cols-3 gap-2">
-                                                        {ia.imageUrls.map((img, idx) => (
+                                        ) : (
+                                            <div className="p-4 grid grid-cols-1 md:grid-cols-2">
+                                                {/* PDF Preview */}
+                                                <div className="mb-4">
+                                                    <h4 className="font-semibold mb-2">PDF Document</h4>
+                                                    {ia.pdfUrl ? (
+                                                        <div className="inline-block border rounded p-2">
                                                             <a 
-                                                                key={idx}
-                                                                href={img}
+                                                                href={ia.pdfUrl} 
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
-                                                                className="block h-20 bg-gray-100 border rounded overflow-hidden"
+                                                                className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
                                                             >
-                                                                <img 
-                                                                    src={img} 
-                                                                    alt={`Preview ${idx + 1}`}
-                                                                    className="w-full h-full object-cover"
-                                                                />
+                                                                <span>View PDF</span>
+                                                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                </svg>
                                                             </a>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="bg-gray-100 p-4 rounded text-gray-500">
-                                                        No images available
-                                                    </div>
-                                                )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
+                                                            No PDF available
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Images Preview */}
+                                                <div>
+                                                    <h4 className="font-semibold mb-2">Uploaded Images</h4>
+                                                    {ia.imageUrls && ia.imageUrls.length > 0 ? (
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            {ia.imageUrls.map((img, idx) => (
+                                                                <a 
+                                                                    key={idx}
+                                                                    href={img}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="block h-20 bg-gray-100 border rounded overflow-hidden"
+                                                                >
+                                                                    <img 
+                                                                        src={img} 
+                                                                        alt={`Preview ${idx + 1}`}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-100 p-4 rounded text-gray-500">
+                                                            No images available
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                         
                                         {/* Metadata */}
                                         <div className="p-4 border-t">
                                             <h4 className="font-semibold mb-2">Project Details</h4>
+                                            
+                                            {ia.description && (
+                                                <div className="mb-4">
+                                                    <h5 className="text-sm font-medium text-gray-700">Description</h5>
+                                                    <p className="text-sm text-gray-600 mt-1">{ia.description}</p>
+                                                </div>
+                                            )}
+                                            
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div>
                                                     <h5 className="text-sm font-medium text-gray-700">Materials</h5>
@@ -780,6 +1644,14 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                         {/* Metadata */}
                                         <div className="p-4 border-t">
                                             <h4 className="font-semibold mb-2">Project Details</h4>
+                                            
+                                            {ia.description && (
+                                                <div className="mb-4">
+                                                    <h5 className="text-sm font-medium text-gray-700">Description</h5>
+                                                    <p className="text-sm text-gray-600 mt-1">{ia.description}</p>
+                                                </div>
+                                            )}
+                                            
                                             <div className="grid grid-cols-3 gap-4">
                                                 <div>
                                                     <h5 className="text-sm font-medium text-gray-700">Materials</h5>
@@ -827,12 +1699,30 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 )}
                 {activeTab === "classification" && (
                     <div>
-                        <h1 className="text-2xl font-bold">Classification Panel</h1>
-                        <p className="mb-4">Modify IA classifications here.</p>
+                        <h1 className="text-2xl font-bold">Project Management</h1>
+                        <p className="mb-4">Edit project details, manage project metadata, and organize project content.</p>
                         
-                        {/* Classification UI will be implemented here */}
-                        <div className="bg-gray-50 p-6 rounded">
-                            <p className="text-center text-gray-500">Classification features coming soon.</p>
+                        <div className="bg-green-50 p-6 rounded border border-green-200 mb-6">
+                            <h2 className="font-bold text-green-800 mb-2">New Management Features Available!</h2>
+                            <p className="text-green-700">
+                                You can now edit project details directly from the "Approved" tab. Changes you make
+                                will immediately reflect in the gallery.
+                            </p>
+                            <ul className="list-disc list-inside mt-2 text-green-700">
+                                <li>Edit project titles</li>
+                                <li>Modify classifications (materials, colors, functions)</li>
+                                <li>Remove, reorder, or manage images</li>
+                                <li>Preview changes before saving</li>
+                            </ul>
+                        </div>
+                        
+                        <div className="flex justify-center">
+                            <button 
+                                onClick={() => setActiveTab("approved")}
+                                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                Go to Approved Projects
+                            </button>
                         </div>
                     </div>
                 )}
