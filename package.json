@@ -7,8 +7,7 @@
     "vdev": "vite dev",
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc",
-    "email-server": "node server.js"
+    "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
@@ -16,13 +15,10 @@
     "@react-router/node": "^7.4.0",
     "@react-router/serve": "^7.4.0",
     "@supabase/supabase-js": "^2.49.4",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
     "firebase": "^11.5.0",
     "fuse.js": "^7.1.0",
     "isbot": "^5.1.17",
     "lucide-react": "^0.486.0",
-    "nodemailer": "^6.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",

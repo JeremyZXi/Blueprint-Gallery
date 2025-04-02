@@ -4,7 +4,6 @@ import type { IASubmission } from "../utils/supabaseSubmission";
 import { supabase } from "../utils/supabase";
 import { X, Edit, Save, Trash2, Check, ArrowUp, ArrowDown, Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { TestEmail } from "./TestEmail";
 
 interface AdminPanelProps {
     ias: IASubmission[];
@@ -89,7 +88,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 // Get the admin password from environment
                 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
                 
-                // Call the API endpoint with the correct URL
+                // Call the API endpoint
                 const response = await fetch("/api/approveIA", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -669,10 +668,6 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                     <div>
                         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
                         <p className="mb-4">Welcome to the admin panel.</p>
-                        
-                        <div className="mb-8">
-                            <TestEmail />
-                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                             <div className="bg-blue-100 p-4 rounded shadow">
