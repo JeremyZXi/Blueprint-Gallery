@@ -52,6 +52,96 @@ const Home = () => {
         </section>
         <Works />
         <Spotlight/>
+        <section className="bg-[#44505d] text-white body-font py-20">
+          <div className="container mx-auto">
+            <div className="flex flex-col items-center text-center">
+              <InViewMotion>
+                <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-2xl font-body max-w-2xl mx-auto mb-12"
+                >
+                  Description of the website function<br />
+                  Description of the website function<br />
+                  Description of the website function
+                </motion.p>
+              </InViewMotion>
+              
+              <InViewMotion>
+                <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    onClick={() => navigate('/gallery')}
+                    className="relative bg-[#c5d5de] text-[#44505d] font-bold py-4 px-10 rounded-full text-xl overflow-hidden z-10"
+                    whileHover={{ 
+                      scale: 1.05,
+                      boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)",
+                      transition: { duration: 0.15 } 
+                    }}
+                    whileTap={{ scale: 0.97 }}
+                >
+                  <motion.span
+                    className="relative z-10"
+                  >
+                    EXPLORE THE GALLERY
+                  </motion.span>
+                  <motion.div 
+                    className="absolute inset-0 bg-[#b2c0ca] rounded-full z-0" 
+                    initial={{ width: "0%" }}
+                    whileHover={{ width: "100%", transition: { duration: 0.15 } }}
+                  />
+                </motion.button>
+              </InViewMotion>
+            </div>
+          </div>
+        </section>
+        <section className="bg-[#c5d5de] text-[#44505d] body-font py-20">
+          <div className="container mx-auto">
+            <div className="flex flex-col items-center text-center">
+              <InViewMotion>
+                <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-2xl font-body max-w-2xl mx-auto mb-12"
+                >
+                  Description of submission<br />
+                  Description of submission<br />
+                  Description of submission
+                </motion.p>
+              </InViewMotion>
+              
+              <InViewMotion>
+                <motion.button
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    onClick={() => navigate('/submit')}
+                    className="relative bg-[#44505d] text-white font-bold py-4 px-10 rounded-full text-xl overflow-hidden z-10"
+                    whileHover={{ 
+                      scale: 1.05,
+                      boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)",
+                      transition: { duration: 0.15 } 
+                    }}
+                    whileTap={{ scale: 0.97 }}
+                >
+                  <motion.span
+                    className="relative z-10"
+                  >
+                    SUBMIT YOUR OWN DESIGN
+                  </motion.span>
+                  <motion.div 
+                    className="absolute inset-0 bg-[#374049] rounded-full z-0" 
+                    initial={{ width: "0%" }}
+                    whileHover={{ width: "100%", transition: { duration: 0.15 } }}
+                  />
+                </motion.button>
+              </InViewMotion>
+            </div>
+          </div>
+        </section>
         </Layout>
       </div>
   );
@@ -78,7 +168,7 @@ const Hero = () => {
 
   return (
       <div className="bg-[#bbcdd6] min-h-screen">
-        <div className="bg-[url(https://placehold.co/600x400)] bg-no-repeat bg-cover bg-center min-h-screen">
+        <div className="bg-[url(assets/hero1.png)] bg-no-repeat bg-cover bg-center min-h-screen">
           <div className="min-h-screen flex items-center justify-left">
             <div className="text-left px-14 w-full">
               <motion.h1

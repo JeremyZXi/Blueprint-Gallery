@@ -131,8 +131,6 @@ const Gallery = () => {
 
   return (
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Blueprint Gallery</h1>
-
         {/* Search Bar */}
         <div className="mb-8 max-w-xl mx-auto">
           <div className="relative">
@@ -222,7 +220,7 @@ const Gallery = () => {
               {filteredIAs.map((ia) => (
                   <div
                       key={ia.id}
-                      className="border rounded-lg overflow-hidden shadow-lg transition-transform hover:scale-105 cursor-pointer"
+                      className="border bg-white rounded-lg overflow-hidden shadow-lg transition-transform hover:scale-105 cursor-pointer"
                       onClick={() => handleIAClick(ia)}
                   >
                     {/* Thumbnail/Image */}
