@@ -8,7 +8,7 @@ import type { ActionFunction } from "react-router-dom";
 const Hero = () => {
   return (
     <div className="bg-[#bbcdd6] min-h-[50vh]">
-      <div className="bg-[url(assets/hero2.png)] bg-no-repeat bg-cover bg-center min-h-[50vh]">
+      <div className="bg-[url(/assets/hero2.png)] bg-no-repeat bg-cover bg-center min-h-[50vh]">
         <div className="min-h-[50vh] flex items-center justify-left">
           <div className="text-left px-36 w-full">
             <motion.h1

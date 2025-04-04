@@ -25,7 +25,7 @@ const Hero = () => {
 
   return (
       <div className="bg-[#bbcdd6] min-h-screen">
-        <div className="bg-[url(assets/hero2.png)] bg-no-repeat bg-cover bg-center min-h-screen">
+        <div className="bg-[url(/assets/hero2.png)] bg-no-repeat bg-cover bg-center min-h-screen">
           <div className="min-h-screen flex items-center justify-left">
             <div className="text-left px-36 w-full">
               <motion.h1
