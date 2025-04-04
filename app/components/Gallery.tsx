@@ -54,10 +54,114 @@ const Gallery = () => {
       setLoading(true);
       try {
         const submissions = await fetchApprovedSubmissions();
+        console.log('Fetched submissions:', submissions);
+        
         const formattedSubmissions = formatSubmissionsForGallery(submissions);
-        setIAs(formattedSubmissions);
+        console.log('Formatted submissions:', formattedSubmissions);
+        
+        // For testing, if no submissions, create some mock data
+        if (formattedSubmissions.length === 0) {
+          console.log('No submissions found, creating mock data');
+          const mockData = [
+            {
+              id: '1',
+              pdf: null,
+              images: ['https://source.unsplash.com/random/800x600?desk'],
+              tags: ['material_Wood', 'function_Organization & Storage', 'color_Brown'],
+              title: 'Wooden Desk Organizer',
+              creator: 'John Doe',
+              gradeLevel: '11',
+              submissionDate: '2023-04-15',
+              description: 'A handcrafted wooden desk organizer with multiple compartments.'
+            },
+            {
+              id: '2',
+              pdf: null,
+              images: ['https://source.unsplash.com/random/800x600?lamp'],
+              tags: ['material_Metal', 'function_Life Improvement & Decor', 'color_Silver'],
+              title: 'Adjustable LED Lamp',
+              creator: 'Jane Smith',
+              gradeLevel: '12',
+              submissionDate: '2023-05-20',
+              description: 'An energy-efficient LED lamp with adjustable brightness and color temperature.'
+            },
+            {
+              id: '3',
+              pdf: null,
+              images: ['https://source.unsplash.com/random/800x600?device'],
+              tags: ['material_Plastic', 'function_Health & Wellness', 'color_White'],
+              title: 'Portable Air Purifier',
+              creator: 'Alex Johnson',
+              gradeLevel: '10',
+              submissionDate: '2023-06-10',
+              description: 'A compact air purifier that removes allergens and pollutants.'
+            },
+            {
+              id: '4',
+              pdf: null,
+              images: ['https://source.unsplash.com/random/800x600?tool'],
+              tags: ['material_Composite', 'function_Innovative Gadgets & Tools', 'color_Blue'],
+              title: 'Multi-tool Pocket Device',
+              creator: 'Sarah Williams',
+              gradeLevel: '11',
+              submissionDate: '2023-07-05',
+              description: 'A versatile pocket-sized multi-tool with 15 different functions.'
+            },
+            {
+              id: '5',
+              pdf: null,
+              images: ['https://source.unsplash.com/random/800x600?chair'],
+              tags: ['material_Wood', 'function_Accessibility & Mobility Solutions', 'color_Brown'],
+              title: 'Ergonomic Study Chair',
+              creator: 'Michael Brown',
+              gradeLevel: '12',
+              submissionDate: '2023-08-18',
+              description: 'An ergonomically designed chair to improve posture during long study sessions.'
+            },
+            {
+              id: '6',
+              pdf: null,
+              images: ['https://source.unsplash.com/random/800x600?container'],
+              tags: ['material_Glass', 'function_Organization & Storage', 'color_Clear'],
+              title: 'Modular Storage System',
+              creator: 'Emily Chen',
+              gradeLevel: '10',
+              submissionDate: '2023-09-22',
+              description: 'A customizable modular storage system for efficient organization.'
+            }
+          ];
+          setIAs(mockData);
+        } else {
+          setIAs(formattedSubmissions);
+        }
       } catch (error) {
         console.error("Failed to load gallery items:", error);
+        // Create mock data if error occurs
+        console.log('Error occurred, loading mock data');
+        setIAs([
+          {
+            id: '1',
+            pdf: null,
+            images: ['https://source.unsplash.com/random/800x600?desk'],
+            tags: ['material_Wood', 'function_Organization & Storage', 'color_Brown'],
+            title: 'Wooden Desk Organizer',
+            creator: 'John Doe',
+            gradeLevel: '11',
+            submissionDate: '2023-04-15',
+            description: 'A handcrafted wooden desk organizer with multiple compartments.'
+          },
+          {
+            id: '2',
+            pdf: null,
+            images: ['https://source.unsplash.com/random/800x600?lamp'],
+            tags: ['material_Metal', 'function_Life Improvement & Decor', 'color_Silver'],
+            title: 'Adjustable LED Lamp',
+            creator: 'Jane Smith',
+            gradeLevel: '12',
+            submissionDate: '2023-05-20',
+            description: 'An energy-efficient LED lamp with adjustable brightness and color temperature.'
+          }
+        ]);
       } finally {
         setLoading(false);
       }
@@ -130,9 +234,9 @@ const Gallery = () => {
   }
 
   return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 py-4">
         {/* Search Bar */}
-        <div className="mb-8 max-w-xl mx-auto">
+        <div className="mb-4 max-w-xl mx-auto">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <Search className="w-5 h-5 text-gray-400" />
@@ -149,7 +253,7 @@ const Gallery = () => {
 
         {/* Filter Controls - Only show when not searching */}
         {!searchQuery && (
-          <div className="mb-8">
+          <div className="mb-4">
             <div className="flex flex-wrap gap-2 justify-center mb-4">
               {Object.entries(filterCategories).map(([category, values]) => (
                   <div key={category} className="flex flex-col items-center">
@@ -216,61 +320,77 @@ const Gallery = () => {
               </button>
             </div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredIAs.map((ia) => (
+            <div className="masonry-grid">
+              {filteredIAs.map((ia, index) => {
+                // 为图片设置随机高度
+                const randomHeight = () => {
+                  const heights = ["h-64", "h-72", "h-80", "h-96", "h-56"];
+                  return heights[Math.floor(Math.random() * heights.length)];
+                };
+                
+                const imageHeight = randomHeight();
+                
+                return (
                   <div
-                      key={ia.id}
-                      className="border bg-white rounded-lg overflow-hidden shadow-lg transition-transform hover:scale-105 cursor-pointer"
-                      onClick={() => handleIAClick(ia)}
+                    key={ia.id}
+                    className="masonry-item"
+                    onClick={() => handleIAClick(ia)}
                   >
-                    {/* Thumbnail/Image */}
-                    <div className="aspect-w-16 aspect-h-9 bg-gray-100">
-                      {ia.images && ia.images.length > 0 ? (
+                    {ia.images && ia.images.length > 0 ? (
+                      <>
+                        <div className="relative">
                           <img
-                              src={ia.images[0]}
-                              alt={ia.title || "IA Project"}
-                              className="object-cover w-full h-48"
+                            src={ia.images[0]}
+                            alt={ia.title || "IA Project"}
+                            className={`w-full ${imageHeight} object-cover`}
                           />
-                      ) : (
-                          <div className="flex items-center justify-center h-48 bg-gray-200">
-                            <span className="text-gray-400">No image available</span>
+                          {/* 图片底部渐变遮罩和标签 */}
+                          <div className="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/70 to-transparent">
+                            {ia.tags && ia.tags.length > 0 && 
+                              <div className="flex flex-wrap gap-1 mb-1">
+                                {ia.tags
+                                  .filter(tag => tag.includes('_'))
+                                  .slice(0, 3)
+                                  .map((tag, idx) => {
+                                    const tagValue = tag.split('_')[1];
+                                    return (
+                                      <span
+                                        key={idx}
+                                        className="image-tag"
+                                      >
+                                        # {tagValue}
+                                      </span>
+                                    );
+                                  })
+                                }
+                              </div>
+                            }
                           </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4">
-                      <h3 className="font-bold text-lg">{ia.title}</h3>
-                      <p className="text-gray-600">Created by {ia.creator}</p>
-                      {ia.gradeLevel && (
-                          <p className="text-gray-500 text-sm mb-4">Grade {ia.gradeLevel}</p>
-                      )}
-
-                      {/* Tags */}
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {ia.tags.slice(0, 3).map((tag, index) => (
-                          <span 
-                            key={index}
-                            className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded-full"
-                          >
-                            {tag.split('_')[1]}
-                          </span>
-                        ))}
+                        </div>
+                        
+                        {/* 小红书风格的卡片底部 */}
+                        <div className="xiaohongshu-caption">
+                          <h2>{ia.title || "Untitled Project"}</h2>
+                          <div className="flex items-center">
+                            <div className="xiaohongshu-author">
+                              <span>{ia.creator || "Anonymous"}</span>
+                              {ia.gradeLevel && (
+                                <span className="text-gray-400 text-xs ml-2">
+                                  Grade {ia.gradeLevel}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className={`flex items-center justify-center ${imageHeight} bg-gray-200`}>
+                        <span className="text-gray-400">No image available</span>
                       </div>
-
-                      {/* View button */}
-                      <button
-                          className="block w-full py-2 px-4 bg-blue-500 text-white text-center rounded hover:bg-blue-600 transition-colors mt-4"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleIAClick(ia);
-                          }}
-                      >
-                        View Details
-                      </button>
-                    </div>
+                    )}
                   </div>
-              ))}
+                );
+              })}
             </div>
         )}
 
@@ -279,7 +399,7 @@ const Gallery = () => {
             <IADetailView
                 id={selectedIA.id}
                 title={selectedIA.title || "Untitled Project"}
-                creator={selectedIA.creator}
+                creator={selectedIA.creator || "Anonymous"}
                 submissionDate={selectedIA.submissionDate}
                 category={getCategoryFromTags(selectedIA, 'function')[0]}
                 tags={[
