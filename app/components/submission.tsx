@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { handleSubmission } from "../utils/supabaseSubmission";
 import { testSupabaseConnection } from "../utils/testSupabase";
+import { fetchColorTags, fetchMaterialTags, type ColorTag, type MaterialTag } from "../utils/fetchSupabase";
 
-const materials = ["Alloy", "Wood", "Plastic", "Glass", "Fabric", "Composite"];
-const colors = ["Red", "Blue", "Green", "Black", "White", "Yellow"];
 const functions = [
     "Organization & Storage",
     "Life Improvement & Decor",
@@ -23,6 +22,9 @@ interface FormData {
     material: string[];
     color: string[];
     function: string[];
+    otherMaterial: string;
+    otherColor: string;
+    otherFunction: string;
     pdf: File | null;
     images: File[];
 }
@@ -38,6 +40,9 @@ const Submission = () => {
         material: [],
         color: [],
         function: [],
+        otherMaterial: "",
+        otherColor: "",
+        otherFunction: "",
         pdf: null,
         images: []
     });
@@ -45,6 +50,31 @@ const Submission = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<"untested" | "success" | "failed">("untested");
+    
+    const [colorTags, setColorTags] = useState<ColorTag[]>([]);
+    const [materialTags, setMaterialTags] = useState<MaterialTag[]>([]);
+    const [isLoadingTags, setIsLoadingTags] = useState(true);
+    
+    useEffect(() => {
+        const loadTags = async () => {
+            try {
+                setIsLoadingTags(true);
+                const [colorTagsData, materialTagsData] = await Promise.all([
+                    fetchColorTags(),
+                    fetchMaterialTags()
+                ]);
+                
+                setColorTags(colorTagsData);
+                setMaterialTags(materialTagsData);
+            } catch (error) {
+                console.error("Error loading tags:", error);
+            } finally {
+                setIsLoadingTags(false);
+            }
+        };
+        
+        loadTags();
+    }, []);
 
     const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -52,12 +82,23 @@ const Submission = () => {
 
     const handleTagSelect = (category: keyof FormData, tag: string) => {
         if (category === 'material' || category === 'color' || category === 'function') {
-            setFormData((prev) => ({
-                ...prev,
-                [category]: prev[category].includes(tag)
-                    ? prev[category].filter((t: string) => t !== tag)
-                    : [...prev[category], tag]
-            }));
+            if (tag === 'Other') {
+                // If Other is selected, add it to the list if not already present
+                if (!formData[category].includes('Other')) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        [category]: [...prev[category], 'Other']
+                    }));
+                }
+            } else {
+                // For non-Other tags, toggle as before
+                setFormData((prev) => ({
+                    ...prev,
+                    [category]: prev[category].includes(tag)
+                        ? prev[category].filter((t: string) => t !== tag)
+                        : [...prev[category], tag]
+                }));
+            }
         }
     };
 
@@ -77,15 +118,26 @@ const Submission = () => {
 
     const isValidForm = () => {
         console.log("Validating form...", formData);
+        
+        // If "Other" is selected for a category, ensure the corresponding custom value is provided
+        const isMaterialValid = formData.material.length > 0 && 
+            (!formData.material.includes('Other') || formData.otherMaterial.trim() !== '');
+        
+        const isColorValid = formData.color.length > 0 && 
+            (!formData.color.includes('Other') || formData.otherColor.trim() !== '');
+        
+        const isFunctionValid = formData.function.length > 0 && 
+            (!formData.function.includes('Other') || formData.otherFunction.trim() !== '');
+        
         return (
             formData.firstName.trim() !== "" &&
             formData.lastName.trim() !== "" &&
             formData.gradeLevel.trim() !== "" &&
             formData.email.trim() !== "" &&
             formData.title.trim() !== "" &&
-            formData.material.length > 0 &&
-            formData.color.length > 0 &&
-            formData.function.length > 0 &&
+            isMaterialValid &&
+            isColorValid &&
+            isFunctionValid &&
             formData.pdf !== null &&
             formData.images.length >= 3
         );
@@ -106,14 +158,29 @@ const Submission = () => {
             setUploadProgress(0);
             
             console.log("Starting Supabase submission process...");
-            console.log("Form data:", {
+            
+            // Process tags to include custom "Other" values if selected
+            const processedFormData = {
                 ...formData,
-                pdf: formData.pdf?.name,
-                images: formData.images.map(img => img.name)
+                material: formData.material.map(mat => 
+                    mat === 'Other' ? `Other: ${formData.otherMaterial}` : mat
+                ),
+                color: formData.color.map(col => 
+                    col === 'Other' ? `Other: ${formData.otherColor}` : col
+                ),
+                function: formData.function.map(func => 
+                    func === 'Other' ? `Other: ${formData.otherFunction}` : func
+                )
+            };
+            
+            console.log("Form data:", {
+                ...processedFormData,
+                pdf: processedFormData.pdf?.name,
+                images: processedFormData.images.map(img => img.name)
             });
             
             // Handle the submission process using Supabase
-            const result = await handleSubmission(formData, updateProgress);
+            const result = await handleSubmission(processedFormData, updateProgress);
             
             console.log("Submission complete!", result);
             alert("Submission successful! Your project will be reviewed by an administrator.");
@@ -129,6 +196,9 @@ const Submission = () => {
                 material: [],
                 color: [],
                 function: [],
+                otherMaterial: "",
+                otherColor: "",
+                otherFunction: "",
                 pdf: null,
                 images: [],
             });
@@ -277,48 +347,126 @@ const Submission = () => {
             </div>
 
             {/* Material Selection */}
-            <h3 className="mt-4">Select Main Material</h3>
-            <div className="flex flex-wrap gap-2">
-                {materials.map((mat) => (
-                    <button
-                        key={mat}
-                        className={`p-2 border rounded ${formData.material.includes(mat) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={() => !isSubmitting && handleTagSelect("material", mat)}
-                        disabled={isSubmitting}
-                    >
-                        {mat}
-                    </button>
-                ))}
-            </div>
+            <h3 className="mt-4 text-sm font-semibold">Select Main Material</h3>
+            {isLoadingTags ? (
+                <div className="flex items-center space-x-2 mt-2">
+                    <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-gray-500 text-xs">Loading materials...</span>
+                </div>
+            ) : materialTags.length === 0 ? (
+                <p className="text-gray-500 text-xs mt-2">No materials available. Please check back later.</p>
+            ) : (
+                <div className="flex flex-col gap-2 mt-1">
+                    <div className="flex flex-wrap gap-1">
+                        {materialTags.map((mat) => (
+                            <button
+                                key={mat.id}
+                                className={`px-2 py-1 text-xs rounded-full ${formData.material.includes(mat.name) ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}`}
+                                onClick={() => !isSubmitting && handleTagSelect("material", mat.name)}
+                                disabled={isSubmitting}
+                            >
+                                {mat.name}
+                            </button>
+                        ))}
+                        <button
+                            className={`px-2 py-1 text-xs rounded-full ${formData.material.includes('Other') ? "bg-blue-500 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}`}
+                            onClick={() => !isSubmitting && handleTagSelect("material", 'Other')}
+                            disabled={isSubmitting}
+                        >
+                            Other
+                        </button>
+                    </div>
+                    {formData.material.includes('Other') && (
+                        <input 
+                            type="text" 
+                            name="otherMaterial"
+                            value={formData.otherMaterial}
+                            placeholder="Please specify other material..."
+                            className="border p-2 rounded text-sm"
+                            onChange={handleInputChange}
+                            disabled={isSubmitting}
+                        />
+                    )}
+                </div>
+            )}
 
             {/* Color Selection */}
-            <h3 className="mt-4">Select Main Color</h3>
-            <div className="flex flex-wrap gap-2">
-                {colors.map((col) => (
-                    <button
-                        key={col}
-                        className={`p-2 border rounded ${formData.color.includes(col) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={() => !isSubmitting && handleTagSelect("color", col)}
-                        disabled={isSubmitting}
-                    >
-                        {col}
-                    </button>
-                ))}
-            </div>
+            <h3 className="mt-3 text-sm font-semibold">Select Main Color</h3>
+            {isLoadingTags ? (
+                <div className="flex items-center space-x-2 mt-1">
+                    <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="text-gray-500 text-xs">Loading colors...</span>
+                </div>
+            ) : colorTags.length === 0 ? (
+                <p className="text-gray-500 text-xs mt-1">No colors available. Please check back later.</p>
+            ) : (
+                <div className="flex flex-col gap-2 mt-1">
+                    <div className="flex flex-wrap gap-1">
+                        {colorTags.map((col) => (
+                            <button
+                                key={col.id}
+                                className={`px-2 py-1 text-xs rounded-full ${formData.color.includes(col.name) ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}`}
+                                onClick={() => !isSubmitting && handleTagSelect("color", col.name)}
+                                disabled={isSubmitting}
+                            >
+                                {col.name}
+                            </button>
+                        ))}
+                        <button
+                            className={`px-2 py-1 text-xs rounded-full ${formData.color.includes('Other') ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}`}
+                            onClick={() => !isSubmitting && handleTagSelect("color", 'Other')}
+                            disabled={isSubmitting}
+                        >
+                            Other
+                        </button>
+                    </div>
+                    {formData.color.includes('Other') && (
+                        <input 
+                            type="text" 
+                            name="otherColor"
+                            value={formData.otherColor}
+                            placeholder="Please specify other color..."
+                            className="border p-2 rounded text-sm"
+                            onChange={handleInputChange}
+                            disabled={isSubmitting}
+                        />
+                    )}
+                </div>
+            )}
 
             {/* Function Selection */}
-            <h3 className="mt-4">Select Main Function</h3>
-            <div className="flex flex-wrap gap-2">
-                {functions.map((func) => (
+            <h3 className="mt-3 text-sm font-semibold">Select Main Function</h3>
+            <div className="flex flex-col gap-2 mt-1">
+                <div className="flex flex-wrap gap-1">
+                    {functions.map((func) => (
+                        <button
+                            key={func}
+                            className={`px-2 py-1 text-xs rounded-full ${formData.function.includes(func) ? "bg-green-500 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}`}
+                            onClick={() => !isSubmitting && handleTagSelect("function", func)}
+                            disabled={isSubmitting}
+                        >
+                            {func}
+                        </button>
+                    ))}
                     <button
-                        key={func}
-                        className={`p-2 border rounded ${formData.function.includes(func) ? "bg-blue-500 text-white cursor-pointer" : "bg-gray-100 cursor-pointer"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        onClick={() => !isSubmitting && handleTagSelect("function", func)}
+                        className={`px-2 py-1 text-xs rounded-full ${formData.function.includes('Other') ? "bg-green-500 text-white" : "bg-gray-100 text-gray-800 hover:bg-gray-200"} ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'transition-colors'}`}
+                        onClick={() => !isSubmitting && handleTagSelect("function", 'Other')}
                         disabled={isSubmitting}
                     >
-                        {func}
+                        Other
                     </button>
-                ))}
+                </div>
+                {formData.function.includes('Other') && (
+                    <input 
+                        type="text" 
+                        name="otherFunction"
+                        value={formData.otherFunction}
+                        placeholder="Please specify other function..."
+                        className="border p-2 rounded text-sm"
+                        onChange={handleInputChange}
+                        disabled={isSubmitting}
+                    />
+                )}
             </div>
 
             {/* File Upload */}

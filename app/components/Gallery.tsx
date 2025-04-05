@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { fetchApprovedSubmissions, formatSubmissionsForGallery } from "../utils/fetchSupabase";
+import { fetchApprovedSubmissions, formatSubmissionsForGallery, fetchColorTags, fetchMaterialTags, type ColorTag, type MaterialTag } from "../utils/fetchSupabase";
 import IADetailView from "./IADetailView";
 import Fuse from 'fuse.js';
 import { Search } from 'lucide-react';
@@ -23,19 +23,27 @@ const Gallery = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedIA, setSelectedIA] = useState<IAItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // 标签状态
+  const [colorTags, setColorTags] = useState<ColorTag[]>([]);
+  const [materialTags, setMaterialTags] = useState<MaterialTag[]>([]);
+  const [isLoadingTags, setIsLoadingTags] = useState(true);
 
   // Available filter categories
-  const filterCategories = {
-    material: ["Alloy", "Wood", "Plastic", "Glass", "Fabric", "Composite"],
-    color: ["Red", "Blue", "Green", "Black", "White", "Yellow"],
-    function: [
-      "Organization & Storage",
-      "Life Improvement & Decor",
-      "Health & Wellness",
-      "Innovative Gadgets & Tools",
-      "Accessibility & Mobility Solutions"
-    ]
-  };
+  const functions = [
+    "Organization & Storage",
+    "Life Improvement & Decor",
+    "Health & Wellness",
+    "Innovative Gadgets & Tools",
+    "Accessibility & Mobility Solutions"
+  ];
+
+  // 使用从数据库获取的标签构建filterCategories
+  const filterCategories = useMemo(() => ({
+    material: [...materialTags.map(tag => tag.name), 'Other'],
+    color: [...colorTags.map(tag => tag.name), 'Other'],
+    function: [...functions, 'Other']
+  }), [materialTags, colorTags]);
 
   // Initialize Fuse for fuzzy search
   const fuseOptions = {
@@ -48,6 +56,28 @@ const Gallery = () => {
     new Fuse(ias, fuseOptions), 
     [ias]
   );
+
+  // 加载动态标签
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        setIsLoadingTags(true);
+        const [colorTagsData, materialTagsData] = await Promise.all([
+          fetchColorTags(),
+          fetchMaterialTags()
+        ]);
+        
+        setColorTags(colorTagsData);
+        setMaterialTags(materialTagsData);
+      } catch (error) {
+        console.error("Error loading tags:", error);
+      } finally {
+        setIsLoadingTags(false);
+      }
+    };
+    
+    loadTags();
+  }, []);
 
   useEffect(() => {
     async function loadApprovedIAs() {
@@ -203,7 +233,11 @@ const Gallery = () => {
   const getCategoryFromTags = (ia: IAItem, categoryPrefix: string): string[] => {
     return ia.tags
         .filter(tag => tag.startsWith(`${categoryPrefix}_`))
-        .map(tag => tag.replace(`${categoryPrefix}_`, ''));
+        .map(tag => {
+          const value = tag.replace(`${categoryPrefix}_`, '');
+          // Handle the display of Other tags, but keep the full value for display
+          return value;
+        });
   };
 
   // Filter IAs based on selected filter and search query
@@ -216,9 +250,19 @@ const Gallery = () => {
     
     // Otherwise use category filters
     if (activeFilter && selectedCategory) {
-      return ias.filter(ia => 
-        ia.tags.some(tag => tag === `${selectedCategory}_${activeFilter}`)
-      );
+      if (activeFilter === 'Other') {
+        // For "Other" category, filter all tags that start with "Other:"
+        return ias.filter(ia => 
+          ia.tags.some(tag => 
+            tag.startsWith(`${selectedCategory}_Other:`)
+          )
+        );
+      } else {
+        // For regular tags, exact match
+        return ias.filter(ia => 
+          ia.tags.some(tag => tag === `${selectedCategory}_${activeFilter}`)
+        );
+      }
     }
     
     // No filters, return all
@@ -252,62 +296,75 @@ const Gallery = () => {
         </div>
 
         {/* Filter Controls - Only show when not searching */}
-        {/* Filter Controls - Only show when not searching */}
         {!searchQuery && (
             <div className="mb-4">
               <div className="flex flex-col gap-4 items-center mb-4">
                 {/* First row: Material filters */}
                 <div className="flex flex-col items-center w-full">
-                  <h3 className="font-semibold capitalize mb-2">material</h3>
-                  <div className="flex flex-wrap gap-1 justify-center">
-                    {filterCategories.material.map(value => (
-                        <button
-                            key={value}
-                            onClick={() => handleFilterSelect('material', value)}
-                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                                activeFilter === value && selectedCategory === 'material'
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-gray-200 hover:bg-gray-300"
-                            }`}
-                        >
-                          {value}
-                        </button>
-                    ))}
-                  </div>
+                  <h3 className="font-semibold capitalize text-sm mb-2">Materials</h3>
+                  {isLoadingTags ? (
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-500 text-xs">Loading materials...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 justify-center">
+                      {filterCategories.material.map(value => (
+                          <button
+                              key={value}
+                              onClick={() => handleFilterSelect('material', value)}
+                              className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                  activeFilter === value && selectedCategory === 'material'
+                                      ? "bg-blue-500 text-white"
+                                      : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                              }`}
+                          >
+                            {value}
+                          </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Second row: Color filters */}
                 <div className="flex flex-col items-center w-full">
-                  <h3 className="font-semibold capitalize mb-2">color</h3>
-                  <div className="flex flex-wrap gap-1 justify-center">
-                    {filterCategories.color.map(value => (
-                        <button
-                            key={value}
-                            onClick={() => handleFilterSelect('color', value)}
-                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                                activeFilter === value && selectedCategory === 'color'
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-gray-200 hover:bg-gray-300"
-                            }`}
-                        >
-                          {value}
-                        </button>
-                    ))}
-                  </div>
+                  <h3 className="font-semibold capitalize text-sm mb-2">Colors</h3>
+                  {isLoadingTags ? (
+                    <div className="flex items-center space-x-2 mt-1">
+                      <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-gray-500 text-xs">Loading colors...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 justify-center">
+                      {filterCategories.color.map(value => (
+                          <button
+                              key={value}
+                              onClick={() => handleFilterSelect('color', value)}
+                              className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                  activeFilter === value && selectedCategory === 'color'
+                                      ? "bg-purple-500 text-white"
+                                      : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                              }`}
+                          >
+                            {value}
+                          </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Function filters */}
                 <div className="flex flex-col items-center w-full">
-                  <h3 className="font-semibold capitalize mb-2">function</h3>
+                  <h3 className="font-semibold capitalize text-sm mb-2">Functions</h3>
                   <div className="flex flex-wrap gap-1 justify-center">
                     {filterCategories.function.map(value => (
                         <button
                             key={value}
                             onClick={() => handleFilterSelect('function', value)}
-                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
                                 activeFilter === value && selectedCategory === 'function'
-                                    ? "bg-blue-500 text-white"
-                                    : "bg-gray-200 hover:bg-gray-300"
+                                    ? "bg-green-500 text-white"
+                                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
                             }`}
                         >
                           {value}
@@ -321,7 +378,7 @@ const Gallery = () => {
                   <div className="flex justify-center">
                     <button
                         onClick={clearFilters}
-                        className="px-4 py-2 bg-red-100 text-red-800 rounded-full hover:bg-red-200 transition-colors"
+                        className="px-3 py-1 text-xs bg-red-100 text-red-800 rounded-full hover:bg-red-200 transition-colors"
                     >
                       Clear Filter: {activeFilter}
                     </button>
@@ -330,11 +387,10 @@ const Gallery = () => {
             </div>
         )}
 
-
         {/* Search query display */}
         {searchQuery && (
           <div className="flex justify-center mb-6">
-            <div className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full flex items-center">
+            <div className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded-full flex items-center">
               <span>Search results for: <strong>{searchQuery}</strong></span>
               <button 
                 onClick={() => setSearchQuery('')}
@@ -394,12 +450,16 @@ const Gallery = () => {
                                   .slice(0, 3)
                                   .map((tag, idx) => {
                                     const tagValue = tag.split('_')[1];
+                                    // Format "Other: value" tags correctly
+                                    const displayTag = tagValue.startsWith('Other:') 
+                                      ? tagValue // Keep the full "Other: value" for display
+                                      : tagValue;
                                     return (
                                       <span
                                         key={idx}
                                         className="image-tag"
                                       >
-                                        # {tagValue}
+                                        # {displayTag}
                                       </span>
                                     );
                                   })

@@ -1,0 +1,19 @@
+-- 创建用于临时禁用RLS的函数
+CREATE OR REPLACE FUNCTION disable_rls()
+RETURNS VOID AS $$
+BEGIN
+  -- 禁用color_tags和material_tags表的RLS
+  ALTER TABLE color_tags DISABLE ROW LEVEL SECURITY;
+  ALTER TABLE material_tags DISABLE ROW LEVEL SECURITY;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 创建用于重新启用RLS的函数
+CREATE OR REPLACE FUNCTION enable_rls()
+RETURNS VOID AS $$
+BEGIN
+  -- 启用color_tags和material_tags表的RLS
+  ALTER TABLE color_tags ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE material_tags ENABLE ROW LEVEL SECURITY;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER; 

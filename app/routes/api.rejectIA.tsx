@@ -26,7 +26,11 @@ export const action: ActionFunction = async ({ request }: { request: Request }) 
       .eq('id', id);
       
     if (updateError) {
-      throw new Error(`Failed to update submission status: ${updateError.message}`);
+      console.error("Error updating submission status:", updateError);
+      return Response.json({ 
+        error: "Failed to update submission status", 
+        details: updateError.message 
+      }, { status: 500 });
     }
     
     // Get the submission to find file paths
@@ -37,44 +41,73 @@ export const action: ActionFunction = async ({ request }: { request: Request }) 
       .single();
       
     if (fetchError) {
-      throw new Error(`Failed to fetch submission: ${fetchError.message}`);
+      console.error("Error fetching submission:", fetchError);
+      // Continue even if fetch fails - we've already marked as rejected
     }
     
-    if (!submission) {
-      return Response.json({ error: "Submission not found" }, { status: 404 });
-    }
-    
-    // Delete files from storage
-    const filesToDelete = [
-      submission.pdfUrl,
-      ...(submission.imageUrls || [])
-    ];
-    
-    // Extract paths from URLs
-    const storagePaths = filesToDelete.map(url => {
-      // Get only the path after /storage/v1/object/public/
-      const match = url.match(/\/storage\/v1\/object\/public\/([^?]+)/);
-      return match ? match[1] : null;
-    }).filter(Boolean);
-    
-    // Delete each file from storage
-    for (const path of storagePaths) {
-      if (path) {
-        const { error: deleteError } = await supabase.storage
-          .from('submissions')
-          .remove([path]);
+    // Only proceed with file deletion if we successfully fetched the submission
+    if (submission) {
+      try {
+        // Delete files from storage
+        const filesToDelete = [
+          submission.pdfUrl,
+          ...(submission.imageUrls || [])
+        ].filter(Boolean); // Filter out undefined/null values
+        
+        console.log(`Attempting to delete ${filesToDelete.length} files for submission ${id}`);
+        
+        // Extract paths from URLs
+        const storagePaths = filesToDelete.map(url => {
+          if (!url) return null;
           
-        if (deleteError) {
-          console.error(`Failed to delete file at path ${path}:`, deleteError);
-          // Continue with other deletions even if one fails
+          // Get only the path after /storage/v1/object/public/
+          const match = url.match(/\/storage\/v1\/object\/public\/([^?]+)/);
+          return match ? match[1] : null;
+        }).filter(Boolean);
+        
+        // Delete each file from storage
+        for (const path of storagePaths) {
+          if (path) {
+            try {
+              const { error: deleteError } = await supabase.storage
+                .from('submissions')
+                .remove([path]);
+                
+              if (deleteError) {
+                console.error(`Failed to delete file at path ${path}:`, deleteError);
+                // Continue with other deletions even if one fails
+              }
+            } catch (storageError) {
+              console.error(`Exception deleting file at path ${path}:`, storageError);
+              // Continue with other deletions even if one fails
+            }
+          }
         }
+      } catch (storageError) {
+        console.error("Error during file deletion process:", storageError);
+        // We still consider the rejection successful even if file deletion fails
       }
     }
     
     return Response.json({ success: true, message: "IA rejected successfully" });
   } catch (error: unknown) {
     console.error("Error rejecting IA:", error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return Response.json({ error: "Failed to reject IA", details: errorMessage }, { status: 500 });
+    let errorMessage = "Unknown error";
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      console.error("Error details:", {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+    } else {
+      console.error("Non-Error object thrown:", error);
+    }
+    
+    return Response.json({ 
+      error: "Failed to reject IA", 
+      details: errorMessage 
+    }, { status: 500 });
   }
 }; 
