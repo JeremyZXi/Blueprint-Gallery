@@ -18,7 +18,7 @@ export const action = async ({ request }: { request: Request }) => {
       return Response.json({ error: "Invalid admin password" }, { status: 401 });
     }
 
-    // Update the submission status to approved
+    // Update the submission status to approved testtest test test
     const { error } = await supabase
       .from('submissions')
       .update({ status: 'approved' })
