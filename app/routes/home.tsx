@@ -74,7 +74,7 @@ const Home = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.2 }}
                     onClick={() => navigate('/gallery')}
-                    className="relative bg-[#c5d5de] text-[#44505d] font-bold py-4 px-10 rounded-full text-xl overflow-hidden z-10"
+                    className="relative bg-[#bbcdd6] text-[#44505d] font-bold py-4 px-10 rounded-full text-xl overflow-hidden z-10"
                     whileHover={{ 
                       scale: 1.05,
                       boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)",
@@ -97,7 +97,7 @@ const Home = () => {
             </div>
           </div>
         </section>
-        <section className="bg-[#c5d5de] text-[#44505d] body-font py-20">
+        <section className="bg-[#bbcdd6] text-[#44505d] body-font py-20">
           <div className="container mx-auto">
             <div className="flex flex-col items-center text-center">
               <InViewMotion>
@@ -219,8 +219,10 @@ const Hero = () => {
 };
 
 // Works 组件
+// Works 组件
+// Works 组件
 const Works = () => {
-  const navigate = useNavigate(); // 添加 useNavigate hook
+  const navigate = useNavigate();
   const [hoveredTab, setHoveredTab] = useState(null);
   const [ref, inView] = useInView({
     triggerOnce: true,
@@ -249,17 +251,20 @@ const Works = () => {
     {
       title: 'MYP Work',
       color: '#475569',
-      path: '/myp-work'
+      path: '/',
+      description: 'Coming soon...'
     },
     {
       title: 'DP Work',
       color: '#475569',
-      path: '/dp-work'
+      path: '/',
+      description: 'Coming soon...'
     },
     {
       title: 'Internal\nAssessment',
       color: '#475569',
-      path: '/internal-assessment'
+      path: '/gallery',
+      description: 'Browse a collection of Internal Assessment projects'
     }
   ];
 
@@ -283,41 +288,53 @@ const Works = () => {
           {cards.map((card, index) => (
               <motion.div
                   key={index}
-                  className="w-full md:w-[300px] aspect-square rounded-lg overflow-hidden cursor-pointer"
+                  className="w-full md:w-[300px] aspect-square rounded-lg overflow-hidden cursor-pointer relative"
                   style={{ backgroundColor: card.color }}
                   whileHover={{ scale: 1.05 }}
                   onMouseEnter={() => setHoveredTab(index)}
                   onMouseLeave={() => setHoveredTab(null)}
-                  onClick={() => handleCardClick(card.path)} // 添加点击处理
+                  onClick={() => handleCardClick(card.path)}
                   variants={childVariants}
               >
+                {/* 卡片内容 */}
                 <div className="p-6 w-full h-full flex flex-col items-center justify-center text-white">
                   <div className="w-16 h-1 bg-white mb-4"></div>
                   <h2 className="text-3xl font-serif text-center">{card.title}</h2>
                   <div className="w-16 h-1 bg-white mt-4"></div>
-                  {/* 可选：添加一个提示用户可点击的图标 */}
+                </div>
+
+                {/* 描述覆盖层 - hover时显示，但保持卡片原始颜色 */}
+                <motion.div
+                    className="absolute inset-0 flex flex-col items-center justify-center p-6"
+                    style={{ backgroundColor: card.color }} // 使用与卡片相同的背景颜色
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: hoveredTab === index ? 0.95 : 0 }} // 稍微透明以创造过渡效果
+                    transition={{ duration: 0.3 }}
+                >
+                  <p className="text-white font-subheading text-center text-lg mb-4">
+                    {card.description}
+                  </p>
+
+                  {/* 将箭头颜色改为白色，与文字颜色一致 */}
                   <motion.svg
-                      className="w-6 h-6 mt-4"
+                      className="w-6 h-6 mt-2 text-white" // 添加text-white类使其与文字颜色一致
                       fill="none"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2"
                       viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: hoveredTab === index ? 1 : 0 }}
+                      stroke="currentColor" // 这里的currentColor会使用父元素的文本颜色，即白色
+                      initial={{ opacity: 1 }}
                   >
                     <path d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
                   </motion.svg>
-                </div>
+                </motion.div>
               </motion.div>
           ))}
         </motion.div>
       </motion.div>
   );
 };
-
-// StudentSpotlight 组件
 
 
 
