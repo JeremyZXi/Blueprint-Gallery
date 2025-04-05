@@ -3,42 +3,8 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run vdev",
   "outputDirectory": "build/client",
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*).ico",
-      "dest": "/$1.ico"
-    },
-    {
-      "src": "/(.*).png",
-      "dest": "/$1.png"
-    },
-    {
-      "src": "/(.*).jpg",
-      "dest": "/$1.jpg"
-    },
-    {
-      "src": "/(.*).json",
-      "dest": "/$1.json"
-    },
-    {
-      "src": "/(.*).svg",
-      "dest": "/$1.svg"
-    },
-    {
-      "src": "/(.*).css",
-      "dest": "/$1.css"
-    },
-    {
-      "src": "/(.*).js",
-      "dest": "/$1.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/200.html"
-    }
+  "rewrites": [
+    { "source": "/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 } 
