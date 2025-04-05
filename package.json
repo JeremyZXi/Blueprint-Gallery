@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "rbuild": "react-router build",
-    "build": "vite build",
+    "vbuild": "vite build",
     "vdev": "vite dev",
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
