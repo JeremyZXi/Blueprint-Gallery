@@ -1,8 +1,20 @@
 {
   "buildCommand": "npm run build",
-  "devCommand": "npm run vdev",
   "outputDirectory": "build/client",
+  "framework": "react",
+  "functions": {
+    "build/server/index.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "buildScripts": {
+    "defaults": {
+      "buildCommand": "npm run build",
+      "outputDirectory": "build/client"
+    }
+  },
   "rewrites": [
+    { "source": "/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 } 
