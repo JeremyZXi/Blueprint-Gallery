@@ -252,43 +252,84 @@ const Gallery = () => {
         </div>
 
         {/* Filter Controls - Only show when not searching */}
+        {/* Filter Controls - Only show when not searching */}
         {!searchQuery && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-2 justify-center mb-4">
-              {Object.entries(filterCategories).map(([category, values]) => (
-                  <div key={category} className="flex flex-col items-center">
-                    <h3 className="font-semibold capitalize mb-2">{category}</h3>
-                    <div className="flex flex-wrap gap-1">
-                      {values.map(value => (
-                          <button
-                              key={value}
-                              onClick={() => handleFilterSelect(category, value)}
-                              className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                                  activeFilter === value && selectedCategory === category
-                                      ? "bg-blue-500 text-white"
-                                      : "bg-gray-200 hover:bg-gray-300"
-                              }`}
-                          >
-                            {value}
-                          </button>
-                      ))}
-                    </div>
+            <div className="mb-4">
+              <div className="flex flex-col gap-4 items-center mb-4">
+                {/* First row: Material filters */}
+                <div className="flex flex-col items-center w-full">
+                  <h3 className="font-semibold capitalize mb-2">material</h3>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {filterCategories.material.map(value => (
+                        <button
+                            key={value}
+                            onClick={() => handleFilterSelect('material', value)}
+                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                activeFilter === value && selectedCategory === 'material'
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-gray-200 hover:bg-gray-300"
+                            }`}
+                        >
+                          {value}
+                        </button>
+                    ))}
                   </div>
-              ))}
-            </div>
-
-            {activeFilter && (
-                <div className="flex justify-center">
-                  <button
-                      onClick={clearFilters}
-                      className="px-4 py-2 bg-red-100 text-red-800 rounded-full hover:bg-red-200 transition-colors"
-                  >
-                    Clear Filter: {activeFilter}
-                  </button>
                 </div>
-            )}
-          </div>
+
+                {/* Second row: Color filters */}
+                <div className="flex flex-col items-center w-full">
+                  <h3 className="font-semibold capitalize mb-2">color</h3>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {filterCategories.color.map(value => (
+                        <button
+                            key={value}
+                            onClick={() => handleFilterSelect('color', value)}
+                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                activeFilter === value && selectedCategory === 'color'
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-gray-200 hover:bg-gray-300"
+                            }`}
+                        >
+                          {value}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Function filters */}
+                <div className="flex flex-col items-center w-full">
+                  <h3 className="font-semibold capitalize mb-2">function</h3>
+                  <div className="flex flex-wrap gap-1 justify-center">
+                    {filterCategories.function.map(value => (
+                        <button
+                            key={value}
+                            onClick={() => handleFilterSelect('function', value)}
+                            className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                activeFilter === value && selectedCategory === 'function'
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-gray-200 hover:bg-gray-300"
+                            }`}
+                        >
+                          {value}
+                        </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {activeFilter && (
+                  <div className="flex justify-center">
+                    <button
+                        onClick={clearFilters}
+                        className="px-4 py-2 bg-red-100 text-red-800 rounded-full hover:bg-red-200 transition-colors"
+                    >
+                      Clear Filter: {activeFilter}
+                    </button>
+                  </div>
+              )}
+            </div>
         )}
+
 
         {/* Search query display */}
         {searchQuery && (

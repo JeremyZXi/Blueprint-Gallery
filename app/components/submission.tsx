@@ -219,7 +219,7 @@ const Submission = () => {
                     type="text" 
                     name="firstName" 
                     value={formData.firstName}
-                    placeholder="First Name" 
+                    placeholder="First Name e.g. Tina"
                     className="border p-2 rounded"
                     onChange={handleInputChange}
                     disabled={isSubmitting}
@@ -228,7 +228,7 @@ const Submission = () => {
                     type="text" 
                     name="lastName" 
                     value={formData.lastName}
-                    placeholder="Last Name" 
+                    placeholder="Last Name e.g. Qiu"
                     className="border p-2 rounded"
                     onChange={handleInputChange}
                     disabled={isSubmitting}
@@ -237,7 +237,7 @@ const Submission = () => {
                     type="text" 
                     name="gradeLevel" 
                     value={formData.gradeLevel}
-                    placeholder="Grade Level" 
+                    placeholder="Grade Level e.g. 11"
                     className="border p-2 rounded"
                     onChange={handleInputChange}
                     disabled={isSubmitting}
@@ -246,7 +246,7 @@ const Submission = () => {
                     type="email" 
                     name="email" 
                     value={formData.email}
-                    placeholder="Email Address" 
+                    placeholder="Email Address e.g. something@example.com"
                     className="border p-2 rounded"
                     onChange={handleInputChange}
                     disabled={isSubmitting}

@@ -15,7 +15,7 @@ const Navbar = () => {
                 <div className="flex justify-between h-16">
                     {/* Logo 部分 */}
                     <div className="flex items-center">
-                        <Link to="/" className="flex items-center space-x-2">
+                        <Link to="/" className="flex items-left space-x-2">
                             <Palette className="h-8 w-8 text-blue-600" />
                             <h1 className="font-heading text-xl">Blueprint Gallery</h1>
                         </Link>

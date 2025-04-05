@@ -4,7 +4,7 @@ import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Submit IA | Blueprint Gallery" },
+    { title: "Submit Your Work | Blueprint Gallery" },
     { name: "description", content: "Submit your IA design project to the Blueprint Gallery" },
   ];
 }
