@@ -1,10 +1,8 @@
 {
-  "framework": "react-router",
   "buildCommand": "npm run build",
   "devCommand": "npm run vdev",
   "outputDirectory": "build/client",
   "rewrites": [
-    { "source": "/assets/:path*", "destination": "/assets/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 } 

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "rbuild": "react-router build",
-    "build": "react-router build && cp public/index.html build/client/index.html && cp public/index.html build/client/200.html && sed -i '' 's#/assets/#./assets/#g' build/client/index.html build/client/200.html",
+    "build": "react-router build && cp public/index.html build/client/index.html && cp public/index.html build/client/200.html",
     "vdev": "vite dev",
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
