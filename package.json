@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
+    "rbuild": "react-router build",
+    "build": "vite build",
     "vdev": "vite dev",
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
+    "vstart": "vite-node ./build/server/index.js",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
