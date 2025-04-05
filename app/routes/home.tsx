@@ -109,6 +109,7 @@ const Home = () => {
                 >
                   Description of submission<br />
                   Description of submission<br />
+                  Description of submission<br />
                   Description of submission
                 </motion.p>
               </InViewMotion>
