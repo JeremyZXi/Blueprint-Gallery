@@ -1,0 +1,8 @@
+{
+  "framework": "react-router",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run vdev",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+} 

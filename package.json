@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "rbuild": "react-router build",
-    "build": "vite build",
+    "build": "react-router build",
     "vdev": "vite dev",
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
@@ -37,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.1",
+    "@vercel/react-router": "^1.1.0",
     "react-router-devtools": "^1.1.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
