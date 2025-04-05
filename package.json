@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "rbuild": "react-router build",
-    "build": "react-router build",
+    "build": "react-router build && node netlify-build.js",
     "vdev": "vite dev",
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js --static build/client",

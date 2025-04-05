@@ -1,10 +1,6 @@
 [build]
   command = "npm run build"
   publish = "build/client"
-  base = "."
-
-[functions]
-  directory = "build/server"
 
 [[redirects]]
   from = "/assets/*"
