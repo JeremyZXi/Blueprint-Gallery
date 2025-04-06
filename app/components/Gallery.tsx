@@ -8,7 +8,7 @@ interface IAItem {
   id: string;
   pdf: string | null;
   images: string[];
-  tags: string[]; // Store all tags for filtering test
+  tags: string[]; // Store all tags for filtering test test
   title?: string;
   creator?: string;
   gradeLevel?: string;
