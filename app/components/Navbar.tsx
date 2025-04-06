@@ -10,14 +10,14 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-[#141c27] shadow-md text-white">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav className="bg-[#141c27] shadow-md text-white w-full">
+            <div className="container-fluid px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                     {/* Logo 部分 */}
-                    <div className="flex items-center">
-                        <Link to="/" className="flex items-left space-x-2">
-                            <Palette className="h-8 w-8 text-blue-600" />
-                            <h1 className="font-heading text-xl">Blueprint Gallery</h1>
+                    <div className="flex-shrink-0 flex items-center pl-0">
+                        <Link to="/" className="flex items-center">
+                            <Palette className="h-8 w-8 text-blue-600 flex-shrink-0" />
+                            <span className="ml-2 font-heading text-xl whitespace-nowrap">Blueprint Gallery</span>
                         </Link>
                     </div>
 
