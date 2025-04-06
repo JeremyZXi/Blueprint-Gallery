@@ -149,6 +149,9 @@ export const handleSubmission = async (
     pdf: File | null;
     images: File[];
     description?: string;
+    otherMaterial?: string;
+    otherColor?: string;
+    otherFunction?: string;
   },
   updateProgress: (progress: number) => void
 ): Promise<{ id: string; pdfUrl: string; imageUrls: string[] }> => {
@@ -194,21 +197,24 @@ export const handleSubmission = async (
       console.log(`Image ${i + 1} upload complete`);
     }
     
-    // Create submission data
+    // Create submission data (strip out otherMaterial, otherColor, otherFunction as they should
+    // already be incorporated into the material, color, and function arrays with "Other: value" format)
+    const { otherMaterial, otherColor, otherFunction, ...restFormData } = formData;
+    
     const submission: IASubmission = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      gradeLevel: formData.gradeLevel,
-      email: formData.email,
-      title: formData.title,
-      material: formData.material,
-      color: formData.color,
-      function: formData.function,
+      firstName: restFormData.firstName,
+      lastName: restFormData.lastName,
+      gradeLevel: restFormData.gradeLevel,
+      email: restFormData.email,
+      title: restFormData.title,
+      material: restFormData.material,
+      color: restFormData.color,
+      function: restFormData.function,
       status: "pending",
       createdAt: new Date().toISOString(),
       pdfUrl,
       imageUrls,
-      description: formData.description || ""
+      description: restFormData.description || ""
     };
     
     // Save submission data to Supabase
