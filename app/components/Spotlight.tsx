@@ -8,6 +8,8 @@ import type { IASubmission } from '../utils/supabaseSubmission';
 
 // Maximum number of projects to display in spotlight
 const MAX_SPOTLIGHT_PROJECTS = 3;
+// Time interval for rotation in milliseconds
+const ROTATION_INTERVAL = 5000;
 
 const Spotlight = () => {
     const [ref, inView] = useInView({
@@ -15,21 +17,22 @@ const Spotlight = () => {
         threshold: 0.2,
     });
 
+    const [allProjects, setAllProjects] = useState<IASubmission[]>([]);
     const [spotlightProjects, setSpotlightProjects] = useState<IASubmission[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentIndex, setCurrentIndex] = useState(0);
 
     useEffect(() => {
         const loadSpotlightProjects = async () => {
             try {
                 setLoading(true);
                 const approvedSubmissions = await fetchApprovedSubmissions();
-                // Get up to 3 random submissions for spotlight
-                const randomizedSubmissions = approvedSubmissions
-                    .sort(() => Math.random() - 0.5)
-                    .slice(0, 3);
-                
-                setSpotlightProjects(randomizedSubmissions);
+                // Shuffle the submissions
+                const shuffledSubmissions = approvedSubmissions.sort(() => Math.random() - 0.5);
+                setAllProjects(shuffledSubmissions);
+                // Set initial spotlight projects
+                setSpotlightProjects(shuffledSubmissions.slice(0, MAX_SPOTLIGHT_PROJECTS));
                 setLoading(false);
             } catch (err) {
                 console.error('Error fetching spotlight projects:', err);
@@ -40,6 +43,21 @@ const Spotlight = () => {
 
         loadSpotlightProjects();
     }, []);
+
+    // Auto-rotation effect
+    useEffect(() => {
+        if (allProjects.length === 0) return;
+
+        const interval = setInterval(() => {
+            setCurrentIndex((prevIndex) => {
+                const newIndex = (prevIndex + MAX_SPOTLIGHT_PROJECTS) % allProjects.length;
+                setSpotlightProjects(allProjects.slice(newIndex, newIndex + MAX_SPOTLIGHT_PROJECTS));
+                return newIndex;
+            });
+        }, ROTATION_INTERVAL);
+
+        return () => clearInterval(interval);
+    }, [allProjects]);
 
     const containerVariants = {
         hidden: { opacity: 0 },
