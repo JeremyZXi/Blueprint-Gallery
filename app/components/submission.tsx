@@ -571,7 +571,7 @@ const Submission = () => {
             )}
 
             <div className="max-w-2xl mx-auto p-6 relative w-full form-container">
-                <h2 className="text-2xl font-bold mb-4">Submit Your IA</h2>
+                <h2 className="text-2xl font-bold mb-4">Submit Your Design Project</h2>
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -787,7 +787,7 @@ const Submission = () => {
                 </div>
 
                 {/* File Upload */}
-                <h3 className={`mt-4 text-sm font-semibold ${formErrors.pdf ? "text-red-500" : ""}`}>Upload Your IA PDF</h3>
+                <h3 className={`mt-4 text-sm font-semibold ${formErrors.pdf ? "text-red-500" : ""}`}>Upload Your Design Project PDF</h3>
                 <div className={formErrors.pdf ? "border-red-100 bg-red-50 rounded-lg" : ""}>
                     <FileUploadButton 
                       label="Click to upload a PDF"
@@ -799,7 +799,7 @@ const Submission = () => {
                     />
                 </div>
 
-                <h3 className={`mt-4 text-sm font-semibold ${formErrors.images ? "text-red-500" : ""}`}>Upload IA Photos (At least 3, Max 6)</h3>
+                <h3 className={`mt-4 text-sm font-semibold ${formErrors.images ? "text-red-500" : ""}`}>Upload Design Project Photos (At least 3, Max 6)</h3>
                 <div className={`mt-1 p-4 rounded-lg bg-gray-100 border-2 border-transparent hover:border-blue-300 hover:bg-white hover:ring-2 hover:ring-blue-100 transition ${formErrors.images ? "border-red-200 bg-red-50" : ""}`}>
                     <div className="flex flex-wrap gap-2 justify-start">
                         {formData.images.map((img, index) => (
