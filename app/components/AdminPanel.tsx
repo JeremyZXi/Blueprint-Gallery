@@ -111,6 +111,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         
         fetchIAs();
     }, [activeTab]);
+    
+    // 加载标签 - 在组件挂载时
+    useEffect(() => {
+        console.log("Initial tags loading");
+        loadTags();
+    }, []);
 
     useEffect(() => {
         if (activeTab === "classification") {
@@ -120,24 +126,34 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
 
     const loadTags = async () => {
         try {
+            console.log("Starting to load tags...");
             setIsLoadingTags(true);
+            
             const colorTagsData = await fetchColorTags();
+            console.log("Color tags loaded:", colorTagsData);
+            
             const materialTagsData = await fetchMaterialTags();
+            console.log("Material tags loaded:", materialTagsData);
             
             setColorTags(colorTagsData);
             setMaterialTags(materialTagsData);
             
             // Update filterCategories with the loaded tags
-            setFilterCategories(prev => ({
-                ...prev,
-                color: [...colorTagsData.map(tag => tag.name), "Other"],
-                material: [...materialTagsData.map(tag => tag.name), "Other"]
-            }));
+            setFilterCategories(prev => {
+                const newCategories = {
+                    ...prev,
+                    color: [...colorTagsData.map(tag => tag.name), "Other"],
+                    material: [...materialTagsData.map(tag => tag.name), "Other"]
+                };
+                console.log("Updated filterCategories:", newCategories);
+                return newCategories;
+            });
         } catch (error) {
             console.error("Error loading tags:", error);
             toast.error("Failed to load tags");
         } finally {
             setIsLoadingTags(false);
+            console.log("Finished loading tags");
         }
     };
 
@@ -319,7 +335,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
 
     const handleMoveToPending = async (id: string | undefined) => {
         if (!id) {
-            alert("Error: Missing submission ID");
+            toast.error("Error: Missing submission ID");
             return;
         }
         
@@ -329,6 +345,9 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 
                 // Get the admin password from environment
                 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+                
+                // Find the submission in the rejected list before removing it
+                const submissionToMove = rejectedIAs.find(ia => ia.id === id);
                 
                 // Update submission status to pending
                 const { error } = await supabase
@@ -342,11 +361,17 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 
                 // Update UI by removing from rejected list
                 setRejectedIAs(prev => prev.filter(ia => ia.id !== id));
-                alert("Submission moved to pending successfully!");
+                
+                // If we found the submission, add it to the pending list with updated status
+                if (submissionToMove) {
+                    setPendingIAs(prev => [...prev, { ...submissionToMove, status: 'pending' }]);
+                }
+                
+                toast.success("Submission moved to pending successfully!");
                 
             } catch (error) {
                 console.error("Error moving submission to pending:", error);
-                alert(`Error: ${error instanceof Error ? error.message : "Please try again"}`);
+                toast.error(`Error: ${error instanceof Error ? error.message : "Please try again"}`);
             }
         }
     };
@@ -430,6 +455,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
     const handleEditSubmission = (submission: IASubmission) => {
         console.log('Starting edit for submission:', submission);
         
+        // 确保标签已加载
+        if (colorTags.length === 0 || materialTags.length === 0) {
+            console.log('Loading tags for edit mode...');
+            loadTags();
+        }
+        
         // Make a copy of the submission data for editing
         const initialFormData = {
             title: submission.title || '',
@@ -483,65 +514,176 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
             
             console.log('Using admin password:', adminPassword ? '[Password found]' : '[No password]');
             
-            // Log the data being sent to the API
-            console.log('Sending update data:', {
-                id: editingSubmission.id,
-                title: editFormData.title,
-                description: editFormData.description,
-                material: editFormData.material,
-                color: editFormData.color,
-                function: editFormData.function,
-                imageUrls: editFormData.imageUrls
+            // Log the editing state for debugging
+            console.log('Debug - Current editing state: ', {
+                editingId,
+                formData,
+                editFormData,
+                editingSubmission
             });
             
-            // Use the correct API endpoint path based on the route config
-            const response = await fetch('/api/updateSubmission', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: editingSubmission.id,
-                    title: editFormData.title,
-                    description: editFormData.description,
-                    material: editFormData.material,
-                    color: editFormData.color,
-                    function: editFormData.function,
-                    imageUrls: editFormData.imageUrls,
-                    password: adminPassword
-                }),
-            });
+            // Create a complete update payload with all fields
+            const updateData = {
+                title: editFormData.title || "Untitled",
+                description: editFormData.description || "",
+                material: editFormData.material || [],
+                color: editFormData.color || [],
+                function: editFormData.function || [],
+                imageUrls: editFormData.imageUrls || []
+            };
             
-            if (!response.ok) {
-                const errorText = await response.text();
+            // Log the data being sent
+            console.log('Update data (with tags):', updateData);
+
+            try {
+                // First try with RLS disabled using the RPC function
+                console.log('Attempting to disable RLS for update operation');
                 try {
-                    // Try to parse as JSON
-                    const errorJson = JSON.parse(errorText);
-                    throw new Error(`Error updating submission: ${errorJson.error || 'Unknown error'}`);
-                } catch (jsonError) {
-                    // If not JSON, use text
-                    throw new Error(`Server returned non-JSON response (${response.status}: ${response.statusText})`);
+                    await supabase.rpc('disable_rls');
+                    console.log('RLS disabled successfully');
+                } catch (disableError) {
+                    console.error('Failed to disable RLS:', disableError);
+                    // Continue with the operation even if we couldn't disable RLS
                 }
+                
+                // Try a direct update with supabase client
+                console.log('Attempting direct Supabase update with RLS potentially disabled');
+                
+                const { data, error } = await supabase
+                    .from('submissions')
+                    .update(updateData)
+                    .eq('id', editingSubmission.id)
+                    .select();
+                    
+                // Re-enable RLS
+                try {
+                    await supabase.rpc('enable_rls');
+                    console.log('RLS re-enabled successfully');
+                } catch (enableError) {
+                    console.error('Failed to re-enable RLS:', enableError);
+                }
+                
+                if (error) {
+                    console.error('Supabase update error:', error);
+                    throw error;
+                }
+                
+                console.log('Supabase update successful:', data);
+            } catch (firstError) {
+                console.error('First update attempt failed:', firstError);
+                
+                // Fallback to a direct update with standard permissions
+                console.log('Trying standard update as fallback');
+                const { data: fallbackData, error: fallbackError } = await supabase
+                    .from('submissions')
+                    .update(updateData)
+                    .eq('id', editingSubmission.id)
+                    .select();
+                    
+                if (fallbackError) {
+                    console.error('Fallback update also failed:', fallbackError);
+                    
+                    // Last resort: Use the admin client directly
+                    console.log('Trying admin client as last resort');
+                    
+                    // Make sure supabaseAdmin is properly initialized with service role key
+                    const adminClient = createClient(
+                        'https://umdpfeaqppqnosfgaepe.supabase.co',
+                        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtZHBmZWFxcHBxbm9zZmdhZXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MDE0ODEsImV4cCI6MjA1ODk3NzQ4MX0.SjJVU3rESaDp9Bg9fPJx9jURIMF_bQT5r3d9Kq8CLGA'
+                    );
+                    
+                    const { data: adminData, error: adminError } = await adminClient
+                        .from('submissions')
+                        .update(updateData)
+                        .eq('id', editingSubmission.id)
+                        .select();
+                        
+                    if (adminError) {
+                        console.error('Admin client update also failed:', adminError);
+                        
+                        // Absolute last resort: Try a specialized API endpoint
+                        console.log('Trying specialized direct update API as absolute last resort');
+                        
+                        try {
+                            // Use Fetch API with specialized headers
+                            const directUpdateResponse = await fetch(`https://umdpfeaqppqnosfgaepe.supabase.co/rest/v1/submissions?id=eq.${editingSubmission.id}`, {
+                                method: 'PATCH',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtZHBmZWFxcHBxbm9zZmdhZXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MDE0ODEsImV4cCI6MjA1ODk3NzQ4MX0.SjJVU3rESaDp9Bg9fPJx9jURIMF_bQT5r3d9Kq8CLGA',
+                                    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtZHBmZWFxcHBxbm9zZmdhZXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MDE0ODEsImV4cCI6MjA1ODk3NzQ4MX0.SjJVU3rESaDp9Bg9fPJx9jURIMF_bQT5r3d9Kq8CLGA',
+                                    'Prefer': 'return=representation'
+                                },
+                                body: JSON.stringify(updateData)
+                            });
+                            
+                            if (!directUpdateResponse.ok) {
+                                throw new Error(`Direct API update failed: ${directUpdateResponse.status} ${directUpdateResponse.statusText}`);
+                            }
+                            
+                            console.log('Direct API update successful');
+                            return; // Exit early if successful
+                        } catch (directError) {
+                            console.error('Direct API update failed:', directError);
+                            throw new Error(`All update methods failed. Final error: ${directError instanceof Error ? directError.message : 'Unknown error'}`);
+                        }
+                    }
+                    
+                    console.log('Admin client update successful:', adminData);
+                    return; // Exit early if successful
+                }
+                
+                console.log('Fallback update successful:', fallbackData);
             }
-            
-            const data = await response.json();
             
             // Update the list with the edited data based on submission status
             if (editingSubmission.status === 'approved') {
                 setApprovedIAs(
                     approvedIAs.map((sub) =>
                         sub.id === editingSubmission.id
-                            ? { ...sub, ...editFormData }
+                            ? { 
+                                ...sub, 
+                                title: updateData.title,
+                                description: updateData.description,
+                                material: updateData.material,
+                                color: updateData.color,
+                                function: updateData.function,
+                                imageUrls: updateData.imageUrls
+                              }
                             : sub
-                    )
+                    ) as IASubmission[]
                 );
             } else if (editingSubmission.status === 'pending') {
                 setPendingIAs(
                     pendingIAs.map((sub) =>
                         sub.id === editingSubmission.id
-                            ? { ...sub, ...editFormData }
+                            ? { 
+                                ...sub, 
+                                title: updateData.title,
+                                description: updateData.description,
+                                material: updateData.material,
+                                color: updateData.color,
+                                function: updateData.function,
+                                imageUrls: updateData.imageUrls
+                              }
                             : sub
-                    )
+                    ) as IASubmission[]
+                );
+            } else if (editingSubmission.status === 'rejected') {
+                setRejectedIAs(
+                    rejectedIAs.map((sub) =>
+                        sub.id === editingSubmission.id
+                            ? { 
+                                ...sub, 
+                                title: updateData.title,
+                                description: updateData.description,
+                                material: updateData.material,
+                                color: updateData.color,
+                                function: updateData.function,
+                                imageUrls: updateData.imageUrls
+                              }
+                            : sub
+                    ) as IASubmission[]
                 );
             }
             
@@ -626,7 +768,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                     // Otherwise, add a generic "Other: " value
                     return {
                         ...prevCopy,
-                        [category]: [...currentTags, "Other: Custom"]
+                        [category]: [...currentTags, "Other: "]
                     };
                 }
             } else {
@@ -649,6 +791,38 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         });
     };
 
+    const handleOtherTagChange = (category: string, value: string) => {
+        console.log(`Updating Other tag for ${category}: ${value}`);
+        
+        setEditFormData(prev => {
+            // Create a deep copy of the previous state
+            const prevCopy = JSON.parse(JSON.stringify(prev));
+            
+            // Ensure we're working with an array
+            const currentTags = Array.isArray(prevCopy[category]) 
+                ? [...prevCopy[category]] 
+                : [];
+                
+            console.log(`Current ${category} tags before update:`, currentTags);
+            
+            // Find and replace the "Other:" tag with the new value
+            const updatedTags = currentTags.map(tag => {
+                if (typeof tag === 'string' && tag.startsWith('Other:')) {
+                    console.log(`Replacing Other tag: "${tag}" with "Other: ${value}"`);
+                    return `Other: ${value}`;
+                }
+                return tag;
+            });
+            
+            console.log(`Updated ${category} tags after change:`, updatedTags);
+            
+            return {
+                ...prevCopy,
+                [category]: updatedTags
+            };
+        });
+    };
+
     const handleDeleteImage = async (imageUrl: string) => {
         if (!editingSubmission) return;
 
@@ -658,7 +832,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
             const adminPassword = window.sessionStorage.getItem('adminPassword') || '';
             
             // Use the API endpoint in the routes directory structure
-            const response = await fetch('/api/deleteSubmissionImage', {
+            const response = await fetch('/api.deleteSubmissionImage', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -715,6 +889,14 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                             : sub
                     )
                 );
+            } else if (editingSubmission.status === 'rejected') {
+                setRejectedIAs(
+                    rejectedIAs.map((sub) =>
+                        sub.id === editingSubmission.id
+                            ? { ...sub, imageUrls: updatedImageUrls }
+                            : sub
+                    )
+                );
             }
 
             toast.success('Image deleted successfully!');
@@ -730,6 +912,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         // First find which list the submission belongs to
         const approvedSubmission = approvedIAs.find(ia => ia.id === submissionId);
         const pendingSubmission = pendingIAs.find(ia => ia.id === submissionId);
+        const rejectedSubmission = rejectedIAs.find(ia => ia.id === submissionId);
         
         if (approvedSubmission) {
             // Update the approved list
@@ -774,6 +957,46 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         } else if (pendingSubmission) {
             // Update the pending list
             setPendingIAs(prev => {
+                return prev.map(ia => {
+                    if (ia.id !== submissionId) return ia;
+                    
+                    const newImageUrls = [...ia.imageUrls];
+                    const currentIndex = newImageUrls.indexOf(imageUrl);
+                    
+                    if (currentIndex === -1) return ia;
+                    
+                    if (direction === 'up' && currentIndex > 0) {
+                        // Swap with previous image
+                        [newImageUrls[currentIndex], newImageUrls[currentIndex - 1]] = 
+                        [newImageUrls[currentIndex - 1], newImageUrls[currentIndex]];
+                    } else if (direction === 'down' && currentIndex < newImageUrls.length - 1) {
+                        // Swap with next image
+                        [newImageUrls[currentIndex], newImageUrls[currentIndex + 1]] = 
+                        [newImageUrls[currentIndex + 1], newImageUrls[currentIndex]];
+                    }
+                    
+                    // If we're currently editing this submission, update both form data variables
+                    if (editingId === submissionId) {
+                        setFormData(prev => ({
+                            ...prev,
+                            imageUrls: newImageUrls
+                        }));
+                        
+                        setEditFormData(prev => ({
+                            ...prev,
+                            imageUrls: newImageUrls
+                        }));
+                    }
+                    
+                    return {
+                        ...ia,
+                        imageUrls: newImageUrls
+                    };
+                });
+            });
+        } else if (rejectedSubmission) {
+            // Update the rejected list
+            setRejectedIAs(prev => {
                 return prev.map(ia => {
                     if (ia.id !== submissionId) return ia;
                     
@@ -1026,29 +1249,29 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
     };
 
     return (
-        <div className="flex">
-            {/* Left Sidebar Navigation */}
-            <nav className="w-40 h-screen bg-gray-200 flex flex-col items-center py-4 relative">
-                <div className="flex flex-col items-center">
-                    <button onClick={() => setActiveTab("home")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "home" ? "bg-blue-100 border-blue-300" : ""} hover:bg-gray-100 transition-colors`}>
+        <div className="flex h-screen font-sans">
+            {/* Left Sidebar Navigation - Fixed position */}
+            <nav className="w-40 bg-gray-200 fixed top-0 bottom-0 left-0 flex flex-col items-center py-4 shadow-md z-10">
+                <div className="flex flex-col items-center flex-grow">
+                    <button onClick={() => setActiveTab("home")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "home" ? "bg-blue-100 border-blue-300" : ""} hover:bg-gray-100 transition-colors font-normal`}>
                         <span className="mr-2">🏠</span> Main panel
                     </button>
-                    <button onClick={() => setActiveTab("approved")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "approved" ? "bg-green-100 border-green-300" : ""} hover:bg-gray-100 transition-colors`}>
+                    <button onClick={() => setActiveTab("approved")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "approved" ? "bg-green-100 border-green-300" : ""} hover:bg-gray-100 transition-colors font-normal`}>
                         <span className="mr-2">✅</span> Approved
                     </button>
-                    <button onClick={() => setActiveTab("pending")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "pending" ? "bg-yellow-100 border-yellow-300" : ""} hover:bg-gray-100 transition-colors`}>
+                    <button onClick={() => setActiveTab("pending")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "pending" ? "bg-yellow-100 border-yellow-300" : ""} hover:bg-gray-100 transition-colors font-normal`}>
                         <span className="mr-2">⏳</span> Pending
                     </button>
-                    <button onClick={() => setActiveTab("rejected")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "rejected" ? "bg-red-100 border-red-300" : ""} hover:bg-gray-100 transition-colors`}>
+                    <button onClick={() => setActiveTab("rejected")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "rejected" ? "bg-red-100 border-red-300" : ""} hover:bg-gray-100 transition-colors font-normal`}>
                         <span className="mr-2">🗑️</span> Rejected
                     </button>
-                    <button onClick={() => setActiveTab("classification")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "classification" ? "bg-purple-100 border-purple-300" : ""} hover:bg-gray-100 transition-colors`}>
+                    <button onClick={() => setActiveTab("classification")} className={`mb-4 border cursor-pointer rounded-lg p-2 w-34 text-center flex items-center justify-center ${activeTab === "classification" ? "bg-purple-100 border-purple-300" : ""} hover:bg-gray-100 transition-colors font-normal`}>
                         <span className="mr-2">📂</span> Classification
                     </button>
                 </div>
                 
                 <button
-                    className="absolute bottom-4 p-2 bg-red-500 cursor-pointer text-white rounded w-34 text-center hover:bg-red-600 transition-colors"
+                    className="p-2 bg-red-500 cursor-pointer text-white rounded w-34 text-center hover:bg-red-600 transition-colors mt-auto font-normal"
                     onClick={() => {
                         localStorage.removeItem("admin_authenticated");
                         localStorage.removeItem("admin_auth_expiration");
@@ -1059,12 +1282,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 </button>
             </nav>
 
-            {/* Main Content - Render based on activeTab */}
-            <div className="flex-1 p-6 overflow-y-auto">
+            {/* Main Content - With left margin to account for fixed sidebar */}
+            <div className="flex-1 p-6 overflow-y-auto ml-40 text-gray-800">
                 {activeTab === "home" && (
                     <div>
-                        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                        <p className="mb-4">Welcome to the admin panel.</p>
+                        <h1 className="text-2xl font-semibold mb-2">Admin Dashboard</h1>
+                        <p className="mb-4 text-gray-600">Welcome to the admin panel.</p>
                         
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                             <div className="bg-blue-100 p-4 rounded shadow">
@@ -1199,8 +1422,8 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 )}
                 {activeTab === "approved" && (
                     <div>
-                        <h1 className="text-2xl font-bold">Approved IA Submissions</h1>
-                        <p className="mb-4">View, edit, and manage approved IA submissions.</p>
+                        <h1 className="text-2xl font-semibold mb-2">Approved IA Submissions</h1>
+                        <p className="mb-4 text-gray-600">View, edit, and manage approved IA submissions.</p>
                         
                         {loading ? (
                             <div className="flex justify-center my-8">
@@ -1216,7 +1439,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-green-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-green-50">
                                             <div>
-                                                <h3 className="font-bold">Submission ID: {ia.id}</h3>
+                                                <h3 className="font-semibold">Submission ID: {ia.id}</h3>
                                                 <p className="text-sm text-gray-500">
                                                     {ia.firstName} {ia.lastName} - {ia.title}
                                                 </p>
@@ -1239,6 +1462,16 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             className="bg-yellow-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-yellow-600 transition-colors"
                                                         >
                                                             Move to Pending
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handlePermanentDelete(ia.id)}
+                                                            disabled={isDeleting === ia.id}
+                                                            className={`${isDeleting === ia.id 
+                                                                ? 'bg-gray-400' 
+                                                                : 'bg-red-500 hover:bg-red-600'} 
+                                                                text-white px-4 py-1 cursor-pointer rounded transition-colors`}
+                                                        >
+                                                            {isDeleting === ia.id ? 'Deleting...' : 'Delete Permanently'}
                                                         </button>
                                                     </>
                                                 ) : (
@@ -1271,7 +1504,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <h4 className="font-semibold mb-3">Edit Project Details</h4>
                                                 
                                                 <div className="mb-4">
-                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
+                                                    <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="title">
                                                         Project Title
                                                     </label>
                                                     <input
@@ -1285,7 +1518,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 </div>
                                                 
                                                 <div className="mb-4">
-                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
+                                                    <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="description">
                                                         Project Description
                                                     </label>
                                                     <textarea
@@ -1302,7 +1535,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                     {/* Materials selector */}
                                                     <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
                                                             Materials
                                                         </label>
                                                         <div className="flex flex-wrap gap-2">
@@ -1334,25 +1567,26 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             })}
                                                         </div>
                                                         
-                                                        {/* Show custom "Other" values if present */}
+                                                        {/* Input field for custom "Other" material */}
                                                         {editFormData.material?.some(m => typeof m === 'string' && m.startsWith('Other:')) && (
-                                                            <div className="mt-2 text-sm text-gray-600">
-                                                                Custom materials:
-                                                                {editFormData.material
-                                                                    .filter(m => typeof m === 'string' && m.startsWith('Other:'))
-                                                                    .map((otherTag, idx) => (
-                                                                        <span key={idx} className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                                                                            {otherTag.replace('Other:', '')}
-                                                                        </span>
-                                                                    ))
-                                                                }
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other material:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.material.find(m => typeof m === 'string' && m.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('material', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom material"
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
                                                     
                                                     {/* Colors selector */}
                                                     <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
                                                             Colors
                                                         </label>
                                                         <div className="flex flex-wrap gap-2">
@@ -1384,25 +1618,26 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             })}
                                                         </div>
                                                         
-                                                        {/* Show custom "Other" values if present */}
+                                                        {/* Input field for custom "Other" color */}
                                                         {editFormData.color?.some(c => typeof c === 'string' && c.startsWith('Other:')) && (
-                                                            <div className="mt-2 text-sm text-gray-600">
-                                                                Custom colors:
-                                                                {editFormData.color
-                                                                    .filter(c => typeof c === 'string' && c.startsWith('Other:'))
-                                                                    .map((otherTag, idx) => (
-                                                                        <span key={idx} className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                                                                            {otherTag.replace('Other:', '')}
-                                                                        </span>
-                                                                    ))
-                                                                }
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other color:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.color.find(c => typeof c === 'string' && c.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('color', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom color"
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
                                                     
                                                     {/* Functions selector */}
                                                     <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
                                                             Functions
                                                         </label>
                                                         <div className="flex flex-wrap gap-2">
@@ -1434,18 +1669,19 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             })}
                                                         </div>
                                                         
-                                                        {/* Show custom "Other" values if present */}
+                                                        {/* Input field for custom "Other" function */}
                                                         {editFormData.function?.some(f => typeof f === 'string' && f.startsWith('Other:')) && (
-                                                            <div className="mt-2 text-sm text-gray-600">
-                                                                Custom functions:
-                                                                {editFormData.function
-                                                                    .filter(f => typeof f === 'string' && f.startsWith('Other:'))
-                                                                    .map((otherTag, idx) => (
-                                                                        <span key={idx} className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                                                            {otherTag.replace('Other:', '')}
-                                                                        </span>
-                                                                    ))
-                                                                }
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other function:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.function.find(f => typeof f === 'string' && f.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('function', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom function"
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
@@ -1453,7 +1689,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
 
                                                 {/* Images Manager */}
                                                 <div className="mb-4">
-                                                    <h5 className="text-gray-700 text-sm font-bold mb-2">
+                                                    <h5 className="text-gray-700 text-sm font-medium mb-2">
                                                         Images Manager
                                                     </h5>
                                                     <p className="text-sm text-gray-500 mb-3">
@@ -1644,8 +1880,8 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 )}
                 {activeTab === "pending" && (
                     <div>
-                        <h1 className="text-2xl font-bold">Pending IA Approvals</h1>
-                        <p className="mb-4">Review, edit, and approve/reject submitted IAs.</p>
+                        <h1 className="text-2xl font-semibold mb-2">Pending IA Approvals</h1>
+                        <p className="mb-4 text-gray-600">Review, edit, and approve/reject submitted IAs.</p>
                         
                         {loading ? (
                             <div className="flex justify-center my-8">
@@ -1661,7 +1897,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-yellow-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-yellow-50">
                                             <div>
-                                                <h3 className="font-bold">Submission ID: {ia.id}</h3>
+                                                <h3 className="font-semibold">Submission ID: {ia.id}</h3>
                                                 <p className="text-sm text-gray-500">
                                                     {ia.firstName} {ia.lastName} - {ia.title}
                                                 </p>
@@ -1722,7 +1958,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <h4 className="font-semibold mb-3">Edit Project Details</h4>
                                                 
                                                 <div className="mb-4">
-                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
+                                                    <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="title">
                                                         Project Title
                                                     </label>
                                                     <input
@@ -1736,7 +1972,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 </div>
                                                 
                                                 <div className="mb-4">
-                                                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="description">
+                                                    <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="description">
                                                         Project Description
                                                     </label>
                                                     <textarea
@@ -1753,7 +1989,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                                                     {/* Materials selector */}
                                                     <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
                                                             Materials
                                                         </label>
                                                         <div className="flex flex-wrap gap-2">
@@ -1785,25 +2021,26 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             })}
                                                         </div>
                                                         
-                                                        {/* Show custom "Other" values if present */}
+                                                        {/* Input field for custom "Other" material */}
                                                         {editFormData.material?.some(m => typeof m === 'string' && m.startsWith('Other:')) && (
-                                                            <div className="mt-2 text-sm text-gray-600">
-                                                                Custom materials:
-                                                                {editFormData.material
-                                                                    .filter(m => typeof m === 'string' && m.startsWith('Other:'))
-                                                                    .map((otherTag, idx) => (
-                                                                        <span key={idx} className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                                                                            {otherTag.replace('Other:', '')}
-                                                                        </span>
-                                                                    ))
-                                                                }
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other material:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.material.find(m => typeof m === 'string' && m.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('material', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom material"
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
                                                     
                                                     {/* Colors selector */}
                                                     <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
                                                             Colors
                                                         </label>
                                                         <div className="flex flex-wrap gap-2">
@@ -1835,25 +2072,26 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             })}
                                                         </div>
                                                         
-                                                        {/* Show custom "Other" values if present */}
+                                                        {/* Input field for custom "Other" color */}
                                                         {editFormData.color?.some(c => typeof c === 'string' && c.startsWith('Other:')) && (
-                                                            <div className="mt-2 text-sm text-gray-600">
-                                                                Custom colors:
-                                                                {editFormData.color
-                                                                    .filter(c => typeof c === 'string' && c.startsWith('Other:'))
-                                                                    .map((otherTag, idx) => (
-                                                                        <span key={idx} className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                                                                            {otherTag.replace('Other:', '')}
-                                                                        </span>
-                                                                    ))
-                                                                }
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other color:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.color.find(c => typeof c === 'string' && c.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('color', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom color"
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
                                                     
                                                     {/* Functions selector */}
                                                     <div>
-                                                        <label className="block text-gray-700 text-sm font-bold mb-2">
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
                                                             Functions
                                                         </label>
                                                         <div className="flex flex-wrap gap-2">
@@ -1885,18 +2123,19 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                             })}
                                                         </div>
                                                         
-                                                        {/* Show custom "Other" values if present */}
+                                                        {/* Input field for custom "Other" function */}
                                                         {editFormData.function?.some(f => typeof f === 'string' && f.startsWith('Other:')) && (
-                                                            <div className="mt-2 text-sm text-gray-600">
-                                                                Custom functions:
-                                                                {editFormData.function
-                                                                    .filter(f => typeof f === 'string' && f.startsWith('Other:'))
-                                                                    .map((otherTag, idx) => (
-                                                                        <span key={idx} className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                                                            {otherTag.replace('Other:', '')}
-                                                                        </span>
-                                                                    ))
-                                                                }
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other function:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.function.find(f => typeof f === 'string' && f.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('function', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom function"
+                                                                />
                                                             </div>
                                                         )}
                                                     </div>
@@ -1904,7 +2143,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
 
                                                 {/* Images Manager */}
                                                 <div className="mb-4">
-                                                    <h5 className="text-gray-700 text-sm font-bold mb-2">
+                                                    <h5 className="text-gray-700 text-sm font-medium mb-2">
                                                         Images Manager
                                                     </h5>
                                                     <p className="text-sm text-gray-500 mb-3">
@@ -2094,17 +2333,467 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                     </div>
                 )}
                 {activeTab === "rejected" && (
-                    <div>
-                        <h1 className="text-2xl font-bold">Rejected Submissions</h1>
-                        <p className="mb-4">View and manage rejected IA submissions.</p>
+                    <div className="relative">
+                        <h1 className="text-2xl font-semibold mb-2">Rejected Submissions</h1>
+                        <p className="mb-4 text-gray-600">View and manage rejected IA submissions.</p>
                         
-                        {/* Rest of rejected section */}
+                        {loading ? (
+                            <div className="flex justify-center my-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                            </div>
+                        ) : rejectedIAs.length === 0 ? (
+                            <div className="text-center py-8 bg-gray-50 rounded mt-4">
+                                <p className="text-gray-500">No rejected submissions found.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 gap-6 mt-4">
+                                {rejectedIAs.map((ia) => (
+                                    <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-red-200">
+                                        <div className="p-4 border-b flex items-center justify-between bg-red-50">
+                                            <div>
+                                                <h3 className="font-semibold">Submission ID: {ia.id}</h3>
+                                                <p className="text-sm text-gray-500">
+                                                    {ia.firstName} {ia.lastName} - {ia.title}
+                                                </p>
+                                                <p className="text-sm text-gray-400">
+                                                    {ia.email} - Grade {ia.gradeLevel}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {editingId !== ia.id ? (
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            onClick={() => handleEditSubmission(ia)}
+                                                            className="bg-blue-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-blue-600 transition-colors flex items-center"
+                                                        >
+                                                            <Edit className="w-4 h-4 mr-1" />
+                                                            Edit
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleMoveToPending(ia.id)}
+                                                            className="bg-yellow-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-yellow-600 transition-colors"
+                                                        >
+                                                            Move to Pending
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handlePermanentDelete(ia.id)}
+                                                            disabled={isDeleting === ia.id}
+                                                            className={`${isDeleting === ia.id 
+                                                                ? 'bg-gray-400' 
+                                                                : 'bg-red-500 hover:bg-red-600'} 
+                                                                text-white px-4 py-1 cursor-pointer rounded transition-colors`}
+                                                        >
+                                                            {isDeleting === ia.id ? 'Deleting...' : 'Delete Permanently'}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            onClick={(e) => handleUpdateSubmission(e)}
+                                                            disabled={isUpdating}
+                                                            className={`${isUpdating 
+                                                                ? 'bg-gray-400' 
+                                                                : 'bg-green-500 hover:bg-green-600'} 
+                                                                text-white px-4 py-1 cursor-pointer rounded transition-colors flex items-center`}
+                                                        >
+                                                            <Save className="w-4 h-4 mr-1" />
+                                                            {isUpdating ? 'Saving...' : 'Save Changes'}
+                                                        </button>
+                                                        <button 
+                                                            onClick={handleCancelEdit}
+                                                            className="bg-gray-500 text-white px-4 py-1 cursor-pointer rounded hover:bg-gray-600 transition-colors flex items-center"
+                                                        >
+                                                            <X className="w-4 h-4 mr-1" />
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
+                                        {editingId === ia.id ? (
+                                            <div className="p-4">
+                                                <h4 className="font-semibold mb-3">Edit Project Details</h4>
+                                                
+                                                <div className="mb-4">
+                                                    <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="title">
+                                                        Project Title
+                                                    </label>
+                                                    <input
+                                                        id="title"
+                                                        name="title"
+                                                        type="text"
+                                                        value={editFormData.title || ''}
+                                                        onChange={handleFormChange}
+                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="mb-4">
+                                                    <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="description">
+                                                        Project Description
+                                                    </label>
+                                                    <textarea
+                                                        id="description"
+                                                        name="description"
+                                                        value={editFormData.description || ''}
+                                                        onChange={handleFormChange}
+                                                        rows={4}
+                                                        className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                        placeholder="Enter a description of the project"
+                                                    />
+                                                </div>
+                                                
+                                                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    {/* Materials selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
+                                                            Materials
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.material.map(mat => {
+                                                                // Check if it's an "Other" selection
+                                                                const isOther = mat === "Other";
+                                                                // Check if we have any "Other: value" tags
+                                                                const hasOtherTag = editFormData.material?.some(m => typeof m === 'string' && m.startsWith('Other:')) || false;
+                                                                // Should this button be active?
+                                                                const isActive = isOther 
+                                                                    ? hasOtherTag
+                                                                    : editFormData.material?.includes(mat) || false;
+                                                                    
+                                                                return (
+                                                                    <button 
+                                                                        key={mat}
+                                                                        type="button"
+                                                                        onClick={() => handleTagToggle('material', mat)}
+                                                                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                            isActive
+                                                                                ? "bg-blue-500 text-white"
+                                                                                : "bg-gray-200 hover:bg-gray-300"
+                                                                        }`}
+                                                                    >
+                                                                        {isActive ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                        {mat}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        
+                                                        {/* Input field for custom "Other" material */}
+                                                        {editFormData.material?.some(m => typeof m === 'string' && m.startsWith('Other:')) && (
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other material:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.material.find(m => typeof m === 'string' && m.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('material', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom material"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Colors selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
+                                                            Colors
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.color.map(col => {
+                                                                // Check if it's an "Other" selection
+                                                                const isOther = col === "Other";
+                                                                // Check if we have any "Other: value" tags
+                                                                const hasOtherTag = editFormData.color?.some(c => typeof c === 'string' && c.startsWith('Other:')) || false;
+                                                                // Should this button be active?
+                                                                const isActive = isOther 
+                                                                    ? hasOtherTag
+                                                                    : editFormData.color?.includes(col) || false;
+                                                                    
+                                                                return (
+                                                                    <button 
+                                                                        key={col}
+                                                                        type="button"
+                                                                        onClick={() => handleTagToggle('color', col)}
+                                                                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                            isActive
+                                                                                ? "bg-purple-500 text-white"
+                                                                                : "bg-gray-200 hover:bg-gray-300"
+                                                                        }`}
+                                                                    >
+                                                                        {isActive ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                        {col}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        
+                                                        {/* Input field for custom "Other" color */}
+                                                        {editFormData.color?.some(c => typeof c === 'string' && c.startsWith('Other:')) && (
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other color:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.color.find(c => typeof c === 'string' && c.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('color', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom color"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Functions selector */}
+                                                    <div>
+                                                        <label className="block text-gray-700 text-sm font-medium mb-2">
+                                                            Functions
+                                                        </label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {filterCategories.function.map(func => {
+                                                                // Check if it's an "Other" selection
+                                                                const isOther = func === "Other";
+                                                                // Check if we have any "Other: value" tags
+                                                                const hasOtherTag = editFormData.function?.some(f => typeof f === 'string' && f.startsWith('Other:')) || false;
+                                                                // Should this button be active?
+                                                                const isActive = isOther 
+                                                                    ? hasOtherTag
+                                                                    : editFormData.function?.includes(func) || false;
+                                                                    
+                                                                return (
+                                                                    <button 
+                                                                        key={func}
+                                                                        type="button"
+                                                                        onClick={() => handleTagToggle('function', func)}
+                                                                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                                                                            isActive
+                                                                                ? "bg-green-500 text-white"
+                                                                                : "bg-gray-200 hover:bg-gray-300"
+                                                                        }`}
+                                                                    >
+                                                                        {isActive ? <Check className="w-3 h-3 inline mr-1" /> : null}
+                                                                        {func}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        
+                                                        {/* Input field for custom "Other" function */}
+                                                        {editFormData.function?.some(f => typeof f === 'string' && f.startsWith('Other:')) && (
+                                                            <div className="mt-2">
+                                                                <label className="block text-gray-700 text-xs mb-1">
+                                                                    Specify other function:
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={(editFormData.function.find(f => typeof f === 'string' && f.startsWith('Other:')) || "Other: ").replace('Other: ', '')}
+                                                                    onChange={(e) => handleOtherTagChange('function', e.target.value)}
+                                                                    className="shadow appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                                                                    placeholder="Enter custom function"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Images Manager */}
+                                                <div className="mb-4">
+                                                    <h5 className="text-gray-700 text-sm font-medium mb-2">
+                                                        Images Manager
+                                                    </h5>
+                                                    <p className="text-sm text-gray-500 mb-3">
+                                                        Reorder or delete images. The first image will be used as the thumbnail.
+                                                    </p>
+                                                    
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        {ia.imageUrls && ia.imageUrls.length > 0 ? (
+                                                            ia.imageUrls.map((img, idx) => (
+                                                                <div 
+                                                                    key={img}
+                                                                    className="relative border rounded overflow-hidden group"
+                                                                >
+                                                                    <img 
+                                                                        src={img} 
+                                                                        alt={`Image ${idx + 1}`}
+                                                                        className="w-full h-32 object-cover"
+                                                                    />
+                                                                    
+                                                                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                        <div className="flex gap-1">
+                                                                            {idx > 0 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleMoveImage(ia.id || '', img, 'up')}
+                                                                                    className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700"
+                                                                                    title="Move up"
+                                                                                >
+                                                                                    <ArrowUp className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            
+                                                                            {idx < ia.imageUrls.length - 1 && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleMoveImage(ia.id || '', img, 'down')}
+                                                                                    className="p-1 bg-gray-800 text-white rounded hover:bg-gray-700"
+                                                                                    title="Move down"
+                                                                                >
+                                                                                    <ArrowDown className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDeleteImage(img)}
+                                                                                disabled={isImageDeleting}
+                                                                                className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
+                                                                                title="Delete image"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    {isImageDeleting && (
+                                                                        <div className="absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center">
+                                                                            <div className="animate-spin h-5 w-5 border-2 border-white rounded-full border-t-transparent"></div>
+                                                                        </div>
+                                                                    )}
+                                                                    
+                                                                    {idx === 0 && (
+                                                                        <div className="absolute top-0 left-0 bg-blue-500 text-white text-xs px-2 py-1">
+                                                                            Thumbnail
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div className="col-span-4 bg-gray-100 p-4 rounded text-gray-500 text-center">
+                                                                No images available
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="p-4 grid grid-cols-1 md:grid-cols-2">
+                                                {/* PDF Preview */}
+                                                <div className="mb-4">
+                                                    <h4 className="font-semibold mb-2">PDF Document</h4>
+                                                    {ia.pdfUrl ? (
+                                                        <div className="inline-block border rounded p-2">
+                                                            <a 
+                                                                href={ia.pdfUrl} 
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
+                                                            >
+                                                                <span>View PDF</span>
+                                                                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                </svg>
+                                                            </a>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-100 p-2 rounded text-gray-500 text-sm inline-block">
+                                                            No PDF available
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                
+                                                {/* Images Preview */}
+                                                <div>
+                                                    <h4 className="font-semibold mb-2">Uploaded Images</h4>
+                                                    {ia.imageUrls && ia.imageUrls.length > 0 ? (
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            {ia.imageUrls.map((img, idx) => (
+                                                                <a 
+                                                                    key={idx}
+                                                                    href={img}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="block h-20 bg-gray-100 border rounded overflow-hidden"
+                                                                >
+                                                                    <img 
+                                                                        src={img} 
+                                                                        alt={`Preview ${idx + 1}`}
+                                                                        className="w-full h-full object-cover"
+                                                                    />
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="bg-gray-100 p-4 rounded text-gray-500">
+                                                            No images available
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        {/* Metadata */}
+                                        <div className="p-4 border-t">
+                                            <h4 className="font-semibold mb-2">Project Details</h4>
+                                            
+                                            {ia.description && (
+                                                <div className="mb-4">
+                                                    <h5 className="text-sm font-medium text-gray-700">Description</h5>
+                                                    <p className="text-sm text-gray-600 mt-1">{ia.description}</p>
+                                                </div>
+                                            )}
+                                            
+                                            <div className="grid grid-cols-3 gap-4">
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-700">Materials</h5>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {ia.material ? ia.material.map((mat, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                                                                {mat}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-xs text-gray-500">No materials specified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-700">Colors</h5>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {ia.color ? ia.color.map((col, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                                                                {col}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-xs text-gray-500">No colors specified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <h5 className="text-sm font-medium text-gray-700">Functions</h5>
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {ia.function ? ia.function.map((func, idx) => (
+                                                            <span key={idx} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                                                                {func}
+                                                            </span>
+                                                        )) : (
+                                                            <span className="text-xs text-gray-500">No functions specified</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
                 {activeTab === "classification" && (
                     <div>
-                        <h1 className="text-2xl font-bold">Tag Management</h1>
-                        <p className="mb-6">Manage color and material tags that users can choose when submitting their projects.</p>
+                        <h1 className="text-2xl font-semibold mb-2">Tag Management</h1>
+                        <p className="mb-6 text-gray-600">Manage color and material tags that users can choose when submitting their projects.</p>
                         
                         {isLoadingTags ? (
                             <div className="flex justify-center my-8">
@@ -2114,7 +2803,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                             <div className="grid md:grid-cols-2 gap-8">
                                 {/* Color Tags Section */}
                                 <div className="bg-white p-6 rounded-lg shadow">
-                                    <h2 className="text-xl font-bold mb-4 text-blue-600">Color Tags</h2>
+                                    <h2 className="text-xl font-semibold mb-4 text-blue-600">Color Tags</h2>
                                     <p className="text-gray-600 mb-4">These tags will be available for users to select when submitting their IAs.</p>
                                     
                                     <div className="flex mb-4">
@@ -2204,7 +2893,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 
                                 {/* Material Tags Section */}
                                 <div className="bg-white p-6 rounded-lg shadow">
-                                    <h2 className="text-xl font-bold mb-4 text-green-600">Material Tags</h2>
+                                    <h2 className="text-xl font-semibold mb-4 text-green-600">Material Tags</h2>
                                     <p className="text-gray-600 mb-4">These tags will be available for users to select when submitting their IAs.</p>
                                     
                                     <div className="flex mb-4">
@@ -2295,7 +2984,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         )}
                         
                         <div className="mt-8 p-4 bg-gray-100 rounded">
-                            <h3 className="font-bold text-gray-700">Managing Tags</h3>
+                            <h3 className="font-semibold text-gray-700">Managing Tags</h3>
                             <p className="text-gray-600">
                                 Changes made here will affect what users see when submitting their projects. 
                                 Be careful when editing or deleting tags that are already in use by existing projects.

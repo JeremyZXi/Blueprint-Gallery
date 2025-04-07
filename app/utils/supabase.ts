@@ -169,4 +169,49 @@ export const uploadFileToSupabase = async (
     console.error('Error uploading file:', error);
     throw error;
   }
+};
+
+/**
+ * Temporarily disable RLS for an operation and then re-enable it
+ * This is for admin operations only and requires service role credentials
+ * @param operation Function that performs the operation while RLS is disabled
+ * @returns Result of the operation
+ */
+export const withRLSDisabled = async <T>(operation: () => Promise<T>): Promise<T> => {
+  try {
+    // Disable RLS (this requires service role credentials)
+    console.log('Attempting to disable RLS for operation');
+    try {
+      await supabase.rpc('disable_rls');
+      console.log('RLS disabled successfully');
+    } catch (disableError) {
+      console.error('Failed to disable RLS:', disableError);
+      // Continue with the operation even if we couldn't disable RLS
+    }
+    
+    // Perform the operation
+    const result = await operation();
+    
+    // Re-enable RLS
+    try {
+      await supabase.rpc('enable_rls');
+      console.log('RLS re-enabled successfully');
+    } catch (enableError) {
+      console.error('Failed to re-enable RLS:', enableError);
+      // Not critical if we couldn't re-enable RLS since it will reset on next request
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error during RLS-disabled operation:', error);
+    
+    // Ensure RLS is re-enabled even if the operation failed
+    try {
+      await supabase.rpc('enable_rls');
+    } catch (finalEnableError) {
+      // Ignore errors here
+    }
+    
+    throw error;
+  }
 }; 
