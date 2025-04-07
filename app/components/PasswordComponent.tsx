@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const PasswordComponent = ({ onAuthSuccess }: { onAuthSuccess: (isAuth: boolean) => void }) => {
     const [input, setInput] = useState("");
@@ -39,6 +40,9 @@ const PasswordComponent = ({ onAuthSuccess }: { onAuthSuccess: (isAuth: boolean)
                 <button onClick={handleLogin} className="mt-2 p-2 cursor-pointer bg-blue-500 text-white rounded w-64">
                     Login
                 </button>
+                <Link to="/" className="mt-2 p-2 cursor-pointer bg-gray-500 text-white rounded w-64 text-center">
+                    Return
+                </Link>
                 {error && <p className="text-red-500 mt-2">{error}</p>}
             </div>
         </div>
