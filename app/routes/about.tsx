@@ -43,11 +43,8 @@ const ProjectDescription = () => {
     >
       <h2 className="text-3xl font-serif mb-8">Project Description</h2>
       <div className="max-w-4xl mx-auto space-y-2 text-gray-700">
-        <p>Project Description</p>
-        <p>Project Description</p>
-        <p>Project Description</p>
-        <p>Project Description</p>
-        <p>Project Description</p>
+        <p className="text-left">This platform was created to preserve and celebrate the incredible design work produced by students. Rather than letting these projects sit forgotten in personal folders, we’ve built a space where creativity can be shared, appreciated, and remembered, turning fleeting ideas into lasting inspiration.</p>
+
       </div>
     </motion.div>
   );
@@ -92,12 +89,7 @@ const Founders = () => {
               }}
             />
           </div>
-          <h3 className="text-xl font-medium mb-2">Description of Yvonne Li</h3>
-          <div className="text-gray-700 space-y-2">
-            <p>Description of Yvonne Li</p>
-            <p>Description of Yvonne Li</p>
-            <p>Description of Yvonne Li</p>
-          </div>
+          <h3 className="text-xl font-medium mb-2">Yvonne Li</h3>
         </motion.div>
         
         <motion.div 
@@ -114,12 +106,8 @@ const Founders = () => {
               }}
             />
           </div>
-          <h3 className="text-xl font-medium mb-2">Description of Tina Qiu</h3>
-          <div className="text-gray-700 space-y-2">
-            <p>Description of Tina Qiu</p>
-            <p>Description of Tina Qiu</p>
-            <p>Description of Tina Qiu</p>
-          </div>
+          <h3 className="text-xl font-medium mb-2">Tina Qiu</h3>
+
         </motion.div>
       </div>
     </motion.div>
@@ -150,10 +138,8 @@ const Contributors = () => {
           </div>
         </div>
         <div className="text-gray-700 space-y-1">
-          <p>Contributor Description</p>
-          <p>Contributor Description</p>
-          <p>Contributor Description</p>
-          <p>Contributor Description</p>
+          <p className="text-left">The website is built by KeyCas. KeyCAS is a student-initiated tech support project that builds websites for other student groups, showcasing other their projects, amplifying their messages, and helping make an impact on campus and beyond.</p>
+
         </div>
       </div>
     </motion.div>
