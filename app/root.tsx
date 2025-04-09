@@ -1,5 +1,4 @@
 import {
-  
   isRouteErrorResponse,
   Links,
   Meta,
@@ -10,6 +9,8 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import { useEffect } from "react";
+import { initEmailJS } from "./utils/emailjs";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -43,6 +44,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    // 简化的初始化流程
+    try {
+      console.log("🚀 初始化 EmailJS...");
+      initEmailJS();
+      console.log("✅ EmailJS 初始化完成");
+    } catch (error) {
+      console.error("❌ EmailJS 初始化失败:", error);
+    }
+  }, []);
+  
   return <Outlet />;
 }
 

@@ -84,6 +84,21 @@ Blueprint Gallery is a specialized application designed to showcase student IA (
    - description (text)
 3. Create a 'submissions' storage bucket for files
 
+### EmailJS Setup
+
+1. Create an account on [EmailJS](https://www.emailjs.com/)
+2. Create a new service connecting to your email provider (Gmail, Outlook, etc.)
+3. Create the following email templates:
+   - Rejection template with parameters: `to_email`, `to_name`, `project_title`, `rejection_reason`
+   - Approval template with parameters: `to_email`, `to_name`, `project_title`
+4. Add the EmailJS configuration to your `.env.local` file:
+   ```
+   VITE_EMAILJS_PUBLIC_KEY=your_emailjs_public_key
+   VITE_EMAILJS_SERVICE_ID=your_emailjs_service_id
+   VITE_EMAILJS_REJECTION_TEMPLATE_ID=your_emailjs_rejection_template_id
+   VITE_EMAILJS_APPROVAL_TEMPLATE_ID=your_emailjs_approval_template_id
+   ```
+
 ## Usage
 
 ### Student Submission Process
@@ -112,3 +127,21 @@ Blueprint Gallery is a specialized application designed to showcase student IA (
 - This project was built to support design technology students in showcasing their work
 - Utilizes Supabase for backend functionality
 - Built with modern React patterns and TailwindCSS
+
+# 关于敏感配置
+
+为了安全地存储和使用 API 密钥等敏感信息，本项目使用环境变量：
+
+1. 创建一个 `.env.local` 文件来存储敏感凭证:
+   ```
+   # EmailJS 配置
+   EMAILJS_PUBLIC_KEY=your_public_key
+   EMAILJS_SERVICE_ID=your_service_id
+   EMAILJS_TEMPLATE_ID=your_template_id
+   ```
+
+2. 确保该文件已添加到 `.gitignore` 中，防止意外提交
+
+3. 系统会自动从 `.env.local` 文件加载这些环境变量，并通过 `config.ts` 文件管理
+
+环境变量方法的优势是可以在不同环境中使用不同的配置值，比如开发环境和生产环境。

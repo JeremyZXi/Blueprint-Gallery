@@ -18,6 +18,7 @@ import { supabase } from "../utils/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { X, Edit, Save, Trash2, Check, ArrowUp, ArrowDown, Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import { sendApprovalEmail, sendRejectionEmail } from "../utils/emailjs";
 
 // 创建一个特殊的Supabase客户端用于绕过RLS (仅在前端测试使用)
 // 注意: 这不是最佳实践，但在开发环境中测试时可以使用
@@ -170,7 +171,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 // Find the submission first to verify it exists
                 const { data: submission, error: fetchError } = await supabase
                     .from('submissions')
-                    .select('id, title, material, color, function')
+                    .select('id, firstName, lastName, email, title, material, color, function')
                     .eq('id', id)
                     .single();
                 
@@ -204,6 +205,25 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                     
                     if (error) {
                         throw error;
+                    }
+                    
+                    // Send approval email
+                    try {
+                        const emailResult = await sendApprovalEmail(
+                            submission.email,
+                            `${submission.firstName} ${submission.lastName}`,
+                            submission.title
+                        );
+                        
+                        if (!emailResult.success) {
+                            console.error("Email notification failed to send:", emailResult.error);
+                            toast.error("Submission approved, but email notification failed to send.");
+                        } else {
+                            console.log("Approval email sent:", emailResult.result);
+                        }
+                    } catch (emailError) {
+                        console.error("Error sending approval email:", emailError);
+                        toast.error("Submission approved, but email notification failed to send.");
                     }
                     
                     // Success!
@@ -251,6 +271,13 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
             return;
         }
         
+        // Get rejection reason from user
+        const rejectionReason = prompt("Please provide a reason for rejecting this submission:");
+        if (rejectionReason === null) {
+            // User canceled the prompt
+            return;
+        }
+        
         if (confirm("Are you sure you want to reject this submission? This will mark it as rejected.")) {
             try {
                 console.log(`Rejecting IA with ID: ${id} (Direct method)`);
@@ -258,7 +285,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 // Find the submission first to verify it exists
                 const { data: submission, error: fetchError } = await supabase
                     .from('submissions')
-                    .select('id, title, material, color, function')
+                    .select('id, firstName, lastName, email, title, material, color, function')
                     .eq('id', id)
                     .single();
                 
@@ -292,6 +319,26 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                     
                     if (error) {
                         throw error;
+                    }
+                    
+                    // Send rejection email
+                    try {
+                        const emailResult = await sendRejectionEmail(
+                            submission.email,
+                            `${submission.firstName} ${submission.lastName}`,
+                            submission.title,
+                            rejectionReason || "Your submission did not meet our gallery criteria."
+                        );
+                        
+                        if (!emailResult.success) {
+                            console.error("Email notification failed to send:", emailResult.error);
+                            toast.error("Submission rejected, but email notification failed to send.");
+                        } else {
+                            console.log("Rejection email sent:", emailResult.result);
+                        }
+                    } catch (emailError) {
+                        console.error("Error sending rejection email:", emailError);
+                        toast.error("Submission rejected, but email notification failed to send.");
                     }
                     
                     // Success!
@@ -1247,6 +1294,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
             toast.error(error instanceof Error ? error.message : "Failed to update material tag");
         }
     };
+
+    // Add this debug log at the beginning of the component
+    useEffect(() => {
+        console.log("EmailJS Config Debug:", {
+            publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY ? "Set (length: " + import.meta.env.VITE_EMAILJS_PUBLIC_KEY.length + ")" : "Not Set",
+            serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID ? "Set" : "Not Set",
+            templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID ? "Set" : "Not Set"
+        });
+    }, []);
 
     return (
         <div className="flex h-screen font-sans">

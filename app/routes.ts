@@ -6,6 +6,7 @@ export default [
     { path: "/submit", file: "routes/submit.tsx"},
     { path: "/gallery", file: "routes/gallery.tsx"},
     { path: "/about", file: "routes/about.tsx"},
+    { path: "/emailtest", file: "routes/emailtest.tsx" },
     { path: "/api/approveIA", file: "routes/api.approveIA.tsx" },
     { path: "/api/rejectIA", file: "routes/api.rejectIA.tsx" },
     { path: "/api/submitIA", file: "routes/api.submitIA.tsx" },
