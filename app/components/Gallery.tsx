@@ -327,7 +327,7 @@ const Gallery = () => {
                         <button
                           key={value}
                           onClick={() => handleFilterSelect('material', value)}
-                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                          className={`px-3 py-1 text-sm cursor-pointer rounded-full transition-colors ${
                             selectedFilters.material.includes(value)
                               ? "bg-blue-500 text-white"
                               : "bg-gray-200 hover:bg-gray-300"
@@ -354,7 +354,7 @@ const Gallery = () => {
                         <button
                           key={value}
                           onClick={() => handleFilterSelect('color', value)}
-                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                          className={`px-3 py-1 text-sm cursor-pointer rounded-full transition-colors ${
                             selectedFilters.color.includes(value)
                               ? "bg-purple-500 text-white"
                               : "bg-gray-200 hover:bg-gray-300"
@@ -375,7 +375,7 @@ const Gallery = () => {
                       <button
                         key={value}
                         onClick={() => handleFilterSelect('function', value)}
-                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        className={`px-3 py-1 text-sm cursor-pointer rounded-full transition-colors ${
                           selectedFilters.function.includes(value)
                             ? "bg-green-500 text-white"
                             : "bg-gray-200 hover:bg-gray-300"
@@ -392,7 +392,7 @@ const Gallery = () => {
                   <div className="flex justify-center">
                     <button
                         onClick={clearFilters}
-                        className="px-3 py-1 text-xs bg-red-100 text-red-800 rounded-full hover:bg-red-200 transition-colors"
+                        className="px-3 py-1 text-xs bg-red-100 text-red-800 cursor-pointer rounded-full hover:bg-red-200 transition-colors"
                     >
                       Clear Filter: {activeFilter}
                     </button>
@@ -404,7 +404,7 @@ const Gallery = () => {
         {/* Search query display */}
         {searchQuery && (
           <div className="flex justify-center mb-6">
-            <div className="px-3 py-1 text-xs bg-blue-100 text-blue-800 rounded-full flex items-center">
+            <div className="px-3 py-1 text-xs bg-blue-100 cursor-pointer text-blue-800 rounded-full flex items-center">
               <span>Search results for: <strong>{searchQuery}</strong></span>
               <button 
                 onClick={() => setSearchQuery('')}
@@ -425,13 +425,13 @@ const Gallery = () => {
                   setSearchQuery('');
                   clearFilters();
                 }}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="mt-4 px-4 py-2 cursor-pointer bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
                 Show All Projects
               </button>
             </div>
         ) : (
-            <div className="masonry-grid">
+            <div className="masonry-grid columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4">
               {filteredIAs.map((ia, index) => {
                 // 为图片设置随机高度
                 const randomHeight = () => {
@@ -444,7 +444,7 @@ const Gallery = () => {
                 return (
                   <div
                     key={ia.id}
-                    className="masonry-item"
+                    className="masonry-item cursor-pointer transition-all duration-1000 hover:-translate-y-1 hover:shadow-3xl relative"
                     onClick={() => handleIAClick(ia)}
                   >
                     {ia.images && ia.images.length > 0 ? (
@@ -457,33 +457,29 @@ const Gallery = () => {
                           />
                           {/* 图片底部渐变遮罩和标签 */}
                           <div className="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/70 to-transparent">
-                            <div className="flex flex-col">
-                              <h3 className="text-lg font-semibold mb-1">{ia.title}</h3>
-                              <p className="text-sm text-gray-600 mb-2">{ia.description}</p>
-                              {ia.tags && ia.tags.length > 0 && 
-                                <div className="flex flex-wrap gap-1 mb-1">
-                                  {ia.tags
-                                    .filter(tag => tag.includes('_'))
-                                    .slice(0, 3)
-                                    .map((tag, idx) => {
-                                      const [category, value] = tag.split('_');
-                                      // For "Other" tags, show the full value after "Other:"
-                                      const displayValue = value.startsWith('Other:') 
-                                        ? value.substring(6) // Remove "Other:" prefix
-                                        : value;
-                                      return (
-                                        <span
-                                          key={idx}
-                                          className="image-tag"
-                                        >
-                                          # {displayValue}
-                                        </span>
-                                      );
-                                    })
-                                  }
-                                </div>
-                              }
-                            </div>
+                            {ia.tags && ia.tags.length > 0 && 
+                              <div className="flex flex-wrap gap-1 mb-1">
+                                {ia.tags
+                                  .filter(tag => tag.includes('_'))
+                                  .slice(0, 3)
+                                  .map((tag, idx) => {
+                                    const [category, value] = tag.split('_');
+                                    // For "Other" tags, show the full value after "Other:"
+                                    const displayValue = value.startsWith('Other:') 
+                                      ? value.substring(6) // Remove "Other:" prefix
+                                      : value;
+                                    return (
+                                      <span
+                                        key={idx}
+                                        className="image-tag"
+                                      >
+                                        # {displayValue}
+                                      </span>
+                                    );
+                                  })
+                                }
+                              </div>
+                            }
                           </div>
                         </div>
                         
