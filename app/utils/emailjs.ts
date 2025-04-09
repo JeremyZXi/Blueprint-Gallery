@@ -44,7 +44,7 @@ Blueprint Gallery Team
 };
 
 // Function to send a rejection email using the template
-export const sendRejectionEmail = async (recipientEmail: string, projectTitle: string) => {
+export const sendRejectionEmail = async (recipientEmail: string, projectTitle: string, rejectionReason: string) => {
   try {
     console.log(`发送拒绝邮件到 ${recipientEmail}...`);
     const response = await emailjs.send(
@@ -52,8 +52,9 @@ export const sendRejectionEmail = async (recipientEmail: string, projectTitle: s
       EmailJSConfig.templateId,
       {
         to_email: recipientEmail,
+        to_name: recipientEmail.split('@')[0], // 使用邮箱用户名作为收件人名称
         subject: '作品审核结果通知',
-        message: getRejectionContent(projectTitle, ''),
+        content: getRejectionContent(projectTitle, rejectionReason),
       }
     );
     console.log('✅ 拒绝邮件发送成功:', response.status);
@@ -73,8 +74,9 @@ export const sendApprovalEmail = async (recipientEmail: string, projectTitle: st
       EmailJSConfig.templateId,
       {
         to_email: recipientEmail,
+        to_name: recipientEmail.split('@')[0], // 使用邮箱用户名作为收件人名称
         subject: '恭喜！您的作品已获批准',
-        message: getApprovalContent(projectTitle),
+        content: getApprovalContent(projectTitle),
       }
     );
     console.log('✅ 批准邮件发送成功:', response.status);
