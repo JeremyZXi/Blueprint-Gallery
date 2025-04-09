@@ -23,6 +23,11 @@ const Gallery = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedIA, setSelectedIA] = useState<IAItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilters, setSelectedFilters] = useState<{[key: string]: string[]}>({
+    material: [],
+    color: [],
+    function: []
+  });
   
   // 标签状态
   const [colorTags, setColorTags] = useState<ColorTag[]>([]);
@@ -201,15 +206,27 @@ const Gallery = () => {
   }, []);
 
   const handleFilterSelect = (category: string, value: string) => {
-    setSelectedCategory(category);
-    setActiveFilter(value);
+    setSelectedFilters(prev => {
+      const currentFilters = prev[category] || [];
+      const newFilters = currentFilters.includes(value)
+        ? currentFilters.filter(v => v !== value)
+        : [...currentFilters, value];
+      
+      return {
+        ...prev,
+        [category]: newFilters
+      };
+    });
     // Clear search query when using category filters
     setSearchQuery('');
   };
 
   const clearFilters = () => {
-    setSelectedCategory(null);
-    setActiveFilter(null);
+    setSelectedFilters({
+      material: [],
+      color: [],
+      function: []
+    });
   };
 
   const handleIAClick = (ia: IAItem) => {
@@ -232,42 +249,39 @@ const Gallery = () => {
   // Extract tag categories for display
   const getCategoryFromTags = (ia: IAItem, categoryPrefix: string): string[] => {
     return ia.tags
-        .filter(tag => tag.startsWith(`${categoryPrefix}_`))
-        .map(tag => {
-          const value = tag.replace(`${categoryPrefix}_`, '');
-          // Handle the display of Other tags, but keep the full value for display
-          return value;
-        });
+      .filter(tag => tag.startsWith(`${categoryPrefix}_`))
+      .map(tag => {
+        const parts = tag.split('_');
+        // If it's an "Other" tag, return just "Other" for filtering
+        if (parts[1].startsWith('Other:')) {
+          return 'Other';
+        }
+        return parts[1];
+      });
   };
 
   // Filter IAs based on selected filter and search query
   const filteredIAs = useMemo(() => {
-    // If we have a search query, use fuzzy search
-    if (searchQuery.trim()) {
-      const searchResults = fuse.search(searchQuery);
-      return searchResults.map(result => result.item);
-    }
-    
-    // Otherwise use category filters
-    if (activeFilter && selectedCategory) {
-      if (activeFilter === 'Other') {
-        // For "Other" category, filter all tags that start with "Other:"
-        return ias.filter(ia => 
-          ia.tags.some(tag => 
-            tag.startsWith(`${selectedCategory}_Other:`)
-          )
-        );
-      } else {
-        // For regular tags, exact match
-        return ias.filter(ia => 
-          ia.tags.some(tag => tag === `${selectedCategory}_${activeFilter}`)
-        );
+    let result = ias;
+
+    // Apply category filters
+    Object.entries(selectedFilters).forEach(([category, values]) => {
+      if (values.length > 0) {
+        result = result.filter(ia => {
+          const iaTags = getCategoryFromTags(ia, category);
+          return values.some(value => iaTags.includes(value));
+        });
       }
+    });
+
+    // Apply search filter
+    if (searchQuery) {
+      const searchResults = fuse.search(searchQuery);
+      result = searchResults.map(result => result.item);
     }
-    
-    // No filters, return all
-    return ias;
-  }, [ias, activeFilter, selectedCategory, searchQuery, fuse]);
+
+    return result;
+  }, [ias, selectedFilters, searchQuery, fuse]);
 
   if (loading) {
     return (
@@ -308,19 +322,19 @@ const Gallery = () => {
                       <span className="text-gray-500 text-xs">Loading materials...</span>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-1 justify-center">
+                    <div className="flex flex-wrap gap-2">
                       {filterCategories.material.map(value => (
-                          <button
-                              key={value}
-                              onClick={() => handleFilterSelect('material', value)}
-                              className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                                  activeFilter === value && selectedCategory === 'material'
-                                      ? "bg-blue-500 text-white"
-                                      : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                              }`}
-                          >
-                            {value}
-                          </button>
+                        <button
+                          key={value}
+                          onClick={() => handleFilterSelect('material', value)}
+                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                            selectedFilters.material.includes(value)
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-200 hover:bg-gray-300"
+                          }`}
+                        >
+                          {value}
+                        </button>
                       ))}
                     </div>
                   )}
@@ -335,19 +349,19 @@ const Gallery = () => {
                       <span className="text-gray-500 text-xs">Loading colors...</span>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-1 justify-center">
+                    <div className="flex flex-wrap gap-2">
                       {filterCategories.color.map(value => (
-                          <button
-                              key={value}
-                              onClick={() => handleFilterSelect('color', value)}
-                              className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                                  activeFilter === value && selectedCategory === 'color'
-                                      ? "bg-purple-500 text-white"
-                                      : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                              }`}
-                          >
-                            {value}
-                          </button>
+                        <button
+                          key={value}
+                          onClick={() => handleFilterSelect('color', value)}
+                          className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                            selectedFilters.color.includes(value)
+                              ? "bg-purple-500 text-white"
+                              : "bg-gray-200 hover:bg-gray-300"
+                          }`}
+                        >
+                          {value}
+                        </button>
                       ))}
                     </div>
                   )}
@@ -356,19 +370,19 @@ const Gallery = () => {
                 {/* Function filters */}
                 <div className="flex flex-col items-center w-full">
                   <h3 className="font-semibold capitalize text-sm mb-2">Functions</h3>
-                  <div className="flex flex-wrap gap-1 justify-center">
+                  <div className="flex flex-wrap gap-2">
                     {filterCategories.function.map(value => (
-                        <button
-                            key={value}
-                            onClick={() => handleFilterSelect('function', value)}
-                            className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                                activeFilter === value && selectedCategory === 'function'
-                                    ? "bg-green-500 text-white"
-                                    : "bg-gray-100 text-gray-800 hover:bg-gray-200"
-                            }`}
-                        >
-                          {value}
-                        </button>
+                      <button
+                        key={value}
+                        onClick={() => handleFilterSelect('function', value)}
+                        className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                          selectedFilters.function.includes(value)
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-200 hover:bg-gray-300"
+                        }`}
+                      >
+                        {value}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -443,29 +457,33 @@ const Gallery = () => {
                           />
                           {/* 图片底部渐变遮罩和标签 */}
                           <div className="absolute bottom-0 left-0 w-full p-2 bg-gradient-to-t from-black/70 to-transparent">
-                            {ia.tags && ia.tags.length > 0 && 
-                              <div className="flex flex-wrap gap-1 mb-1">
-                                {ia.tags
-                                  .filter(tag => tag.includes('_'))
-                                  .slice(0, 3)
-                                  .map((tag, idx) => {
-                                    const tagValue = tag.split('_')[1];
-                                    // Format "Other: value" tags correctly
-                                    const displayTag = tagValue.startsWith('Other:') 
-                                      ? tagValue // Keep the full "Other: value" for display
-                                      : tagValue;
-                                    return (
-                                      <span
-                                        key={idx}
-                                        className="image-tag"
-                                      >
-                                        # {displayTag}
-                                      </span>
-                                    );
-                                  })
-                                }
-                              </div>
-                            }
+                            <div className="flex flex-col">
+                              <h3 className="text-lg font-semibold mb-1">{ia.title}</h3>
+                              <p className="text-sm text-gray-600 mb-2">{ia.description}</p>
+                              {ia.tags && ia.tags.length > 0 && 
+                                <div className="flex flex-wrap gap-1 mb-1">
+                                  {ia.tags
+                                    .filter(tag => tag.includes('_'))
+                                    .slice(0, 3)
+                                    .map((tag, idx) => {
+                                      const [category, value] = tag.split('_');
+                                      // For "Other" tags, show the full value after "Other:"
+                                      const displayValue = value.startsWith('Other:') 
+                                        ? value.substring(6) // Remove "Other:" prefix
+                                        : value;
+                                      return (
+                                        <span
+                                          key={idx}
+                                          className="image-tag"
+                                        >
+                                          # {displayValue}
+                                        </span>
+                                      );
+                                    })
+                                  }
+                                </div>
+                              }
+                            </div>
                           </div>
                         </div>
                         
