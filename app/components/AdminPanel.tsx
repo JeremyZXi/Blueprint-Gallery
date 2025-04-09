@@ -20,13 +20,20 @@ import { X, Edit, Save, Trash2, Check, ArrowUp, ArrowDown, Plus } from "lucide-r
 import toast from "react-hot-toast";
 import { sendApprovalEmail, sendRejectionEmail } from "../utils/emailjs";
 
-// 创建一个特殊的Supabase客户端用于绕过RLS (仅在前端测试使用)
-// 注意: 这不是最佳实践，但在开发环境中测试时可以使用
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVtZHBmZWFxcHBxbm9zZmdhZXBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MDE0ODEsImV4cCI6MjA1ODk3NzQ4MX0.SjJVU3rESaDp9Bg9fPJx9jURIMF_bQT5r3d9Kq8CLGA';
-const supabaseAdmin = createClient(
-  'https://umdpfeaqppqnosfgaepe.supabase.co',
-  ANON_KEY
-);
+// 创建一个管理员客户端，使用环境变量中的凭证
+const createAdminClient = () => {
+  const url = import.meta.env.VITE_SUPABASE_URL || '';
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  
+  if (!url || !anonKey) {
+    console.error('Supabase 环境变量未设置，无法创建管理员客户端');
+    return null;
+  }
+  
+  return createClient(url, anonKey);
+};
+
+const supabaseAdmin = createAdminClient();
 
 interface AdminPanelProps {
     ias: IASubmission[];
@@ -207,23 +214,24 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         throw error;
                     }
                     
-                    // Send approval email
-                    try {
-                        const emailResult = await sendApprovalEmail(
-                            submission.email,
-                            `${submission.firstName} ${submission.lastName}`,
-                            submission.title
-                        );
-                        
-                        if (!emailResult.success) {
-                            console.error("Email notification failed to send:", emailResult.error);
-                            toast.error("Submission approved, but email notification failed to send.");
-                        } else {
-                            console.log("Approval email sent:", emailResult.result);
+                    // 发送批准邮件
+                    if (submission.email) {
+                        try {
+                            const emailSent = await sendApprovalEmail(
+                                submission.email,
+                                submission.title
+                            );
+                            
+                            if (emailSent) {
+                                console.log("✅ 批准邮件发送成功");
+                            } else {
+                                console.error("❌ 批准邮件发送失败");
+                                toast.error("作品已批准，但邮件通知发送失败");
+                            }
+                        } catch (emailError) {
+                            console.error("发送批准邮件时出错:", emailError);
+                            toast.error("作品已批准，但邮件通知发送失败");
                         }
-                    } catch (emailError) {
-                        console.error("Error sending approval email:", emailError);
-                        toast.error("Submission approved, but email notification failed to send.");
                     }
                     
                     // Success!
@@ -321,24 +329,24 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         throw error;
                     }
                     
-                    // Send rejection email
-                    try {
-                        const emailResult = await sendRejectionEmail(
-                            submission.email,
-                            `${submission.firstName} ${submission.lastName}`,
-                            submission.title,
-                            rejectionReason || "Your submission did not meet our gallery criteria."
-                        );
-                        
-                        if (!emailResult.success) {
-                            console.error("Email notification failed to send:", emailResult.error);
-                            toast.error("Submission rejected, but email notification failed to send.");
-                        } else {
-                            console.log("Rejection email sent:", emailResult.result);
+                    // 发送拒绝邮件
+                    if (submission.email) {
+                        try {
+                            const emailSent = await sendRejectionEmail(
+                                submission.email,
+                                submission.title
+                            );
+                            
+                            if (emailSent) {
+                                console.log("✅ 拒绝邮件发送成功");
+                            } else {
+                                console.error("❌ 拒绝邮件发送失败");
+                                toast.error("作品已拒绝，但邮件通知发送失败");
+                            }
+                        } catch (emailError) {
+                            console.error("发送拒绝邮件时出错:", emailError);
+                            toast.error("作品已拒绝，但邮件通知发送失败");
                         }
-                    } catch (emailError) {
-                        console.error("Error sending rejection email:", emailError);
-                        toast.error("Submission rejected, but email notification failed to send.");
                     }
                     
                     // Success!
@@ -425,73 +433,72 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
 
     const handlePermanentDelete = async (id: string | undefined) => {
         if (!id) {
-            alert("Error: Missing submission ID");
+            toast.error("错误: 缺少提交ID");
             return;
         }
         
-        if (confirm("Are you sure you want to permanently delete this submission? This cannot be undone.")) {
+        if (!supabaseAdmin) {
+            toast.error("错误: 管理员客户端未初始化，请检查环境变量配置");
+            return;
+        }
+        
+        if (confirm("您确定要永久删除这个提交吗? 此操作无法撤销!")) {
             try {
                 setIsDeleting(id);
-                console.log(`Permanently deleting submission with ID: ${id}`);
+                console.log(`永久删除ID为 ${id} 的提交`);
                 
-                // Get the admin password from environment
-                const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
-                
-                // 1. First, get the submission details to find file paths
+                // 查找提交的图片URLs
                 const { data: submission, error: fetchError } = await supabase
                     .from('submissions')
-                    .select('pdfUrl, imageUrls')
+                    .select('imageUrls')
                     .eq('id', id)
                     .single();
                 
                 if (fetchError) {
-                    throw new Error(`Failed to fetch submission details: ${fetchError.message}`);
+                    throw fetchError;
                 }
                 
-                // 2. Delete files from storage if they exist
-                if (submission) {
-                    // Prepare an array of all file URLs
-                    const filesToDelete = [
-                        submission.pdfUrl,
-                        ...(submission.imageUrls || [])
-                    ].filter(Boolean);
-                    
-                    for (const fileUrl of filesToDelete) {
-                        // Extract path from URL - this is a simplified approach
-                        const pathMatch = fileUrl.match(/\/([^\/]+)\/([^?]+)/);
-                        if (pathMatch && pathMatch.length >= 3) {
-                            const path = pathMatch[2];
-                            console.log(`Attempting to delete file: ${path}`);
-                            
-                            try {
-                                await supabase.storage
-                                    .from('submissions')
+                // 删除存储中的图片文件
+                if (submission && submission.imageUrls && submission.imageUrls.length > 0) {
+                    for (const imageUrl of submission.imageUrls) {
+                        try {
+                            // 从URL提取存储路径
+                            const pathMatch = imageUrl.match(/\/storage\/v1\/object\/public\/(.+)/);
+                            if (pathMatch && pathMatch[1]) {
+                                const path = decodeURIComponent(pathMatch[1]);
+                                const { error: storageError } = await supabaseAdmin.storage
+                                    .from('submissions-images')
                                     .remove([path]);
-                            } catch (storageError) {
-                                console.error(`Error deleting file ${path}:`, storageError);
-                                // Continue deleting other files even if one fails
+                                
+                                if (storageError) {
+                                    console.error(`删除图片失败: ${path}`, storageError);
+                                }
                             }
+                        } catch (imageError) {
+                            console.error("删除图片时出错:", imageError);
                         }
                     }
                 }
                 
-                // 3. Delete the record from the database
-                const { error: deleteError } = await supabase
+                // 删除数据库记录
+                const { error: deleteError } = await supabaseAdmin
                     .from('submissions')
                     .delete()
                     .eq('id', id);
                 
                 if (deleteError) {
-                    throw new Error(`Failed to delete submission: ${deleteError.message}`);
+                    throw deleteError;
                 }
                 
-                // 4. Update the UI
-                setRejectedIAs(prev => prev.filter(ia => ia.id !== id));
-                alert("Submission permanently deleted!");
+                toast.success("提交已永久删除!");
                 
+                // 从状态中移除
+                setRejectedIAs(prev => prev.filter(ia => ia.id !== id));
+                setApprovedIAs(prev => prev.filter(ia => ia.id !== id));
+                setPendingIAs(prev => prev.filter(ia => ia.id !== id));
             } catch (error) {
-                console.error("Error deleting submission:", error);
-                alert(`Error deleting submission: ${error instanceof Error ? error.message : "Please try again"}`);
+                console.error("删除提交时出错:", error);
+                toast.error("删除失败。请稍后再试。");
             } finally {
                 setIsDeleting(null);
             }
