@@ -315,7 +315,7 @@ const Gallery = () => {
               <div className="flex flex-col gap-4 items-center mb-4">
                 {/* First row: Material filters */}
                 <div className="flex flex-col items-center w-full">
-                  <h3 className="font-semibold capitalize text-sm mb-2">Materials</h3>
+                  <h3 className="font-semibold capitalize text-sm mb-2 cursor-default">Materials</h3>
                   {isLoadingTags ? (
                     <div className="flex items-center space-x-2 mt-1">
                       <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -342,7 +342,7 @@ const Gallery = () => {
 
                 {/* Second row: Color filters */}
                 <div className="flex flex-col items-center w-full">
-                  <h3 className="font-semibold capitalize text-sm mb-2">Colors</h3>
+                  <h3 className="font-semibold capitalize text-sm mb-2 cursor-default">Colors</h3>
                   {isLoadingTags ? (
                     <div className="flex items-center space-x-2 mt-1">
                       <div className="w-3 h-3 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
@@ -369,7 +369,7 @@ const Gallery = () => {
 
                 {/* Function filters */}
                 <div className="flex flex-col items-center w-full">
-                  <h3 className="font-semibold capitalize text-sm mb-2">Functions</h3>
+                  <h3 className="font-semibold capitalize text-sm mb-2 cursor-default">Functions</h3>
                   <div className="flex flex-wrap gap-2">
                     {filterCategories.function.map(value => (
                       <button
