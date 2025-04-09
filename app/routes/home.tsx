@@ -30,7 +30,7 @@ const Home = () => {
                     transition={{ duration: 0.8 }}
                     className="flex-grow sm:pr-16 text-4xl font-body title-font text-[#141c27]"
                 >
-                  Title
+                  About Blueprint Gallery
                 </motion.h1>
               </InViewMotion>
             </div>
@@ -42,9 +42,8 @@ const Home = () => {
                     transition={{ duration: 0.8 }}
                     className="flex-grow sm:pr-16 text-2xl font-body title-font text-[#141c27] mt-4"
                 >
-                  Description of the website function<br />
-                  Description of the website function<br />
-                  Description of the website function
+                  Blueprint Gallery is a platform dedicated to curating and showcasing exceptional design works from Keystone Academy students across the MYP, DP and DP Internal Assessment.
+                  Our mission is to celebrate creativity, inspire future designers, and provide a valuable resource for students and teachers to explore high-quality design projects.
                 </motion.p>
               </InViewMotion>
             </div>
@@ -60,11 +59,10 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
-                    className="text-2xl font-body max-w-2xl mx-auto mb-12"
+                    className="text-left text-2xl font-body max-w-2xl mx-auto mb-12"
                 >
-                  Description of the website function<br />
-                  Description of the website function<br />
-                  Description of the website function
+                  The gallery visually documents and presents a variety of design works from secondary-school students across different grade levels.<br/>
+                  By a simple click, a range of unique product designs categorized by Material, Colors, and Functions will come into your view.
                 </motion.p>
               </InViewMotion>
               
@@ -105,12 +103,13 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
-                    className="text-2xl font-body max-w-2xl mx-auto mb-12"
+                    className="text-left text-2xl font-body max-w-2xl mx-auto mb-12"
                 >
-                  Description of submission<br />
-                  Description of submission<br />
-                  Description of submission<br />
-                  Description of submission
+                  Want to showcase your design work?<br/>
+                  Whether it's an MYP project, DP portfolio, or Internal Assessment, we'd love to feature it!
+                  Stop letting your fabulous design ideas get dusty inside your laptop folders. Click below to submit it and make them work for what they're worth.<br/>
+                  Every creative piece deserves to be seen and celebrated.
+
                 </motion.p>
               </InViewMotion>
               
