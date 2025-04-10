@@ -7,7 +7,7 @@ import packageJson from '../../package.json';
 const getGitVersion = () => {
     try {
         // 在开发环境中使用 process.env.GIT_COMMIT_HASH
-        // 在生产环境中，这个值会在构建时被替换 test
+        // 在生产环境中，这个值会在构建时被替换 test tet
         return process.env.GIT_COMMIT_HASH || 'dev';
     } catch (error) {
         return 'dev';
