@@ -1,8 +1,22 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faPhone, faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
+import { getVersionString } from '../utils/version';
+
+// 获取当前 Git commit hash
+const getGitVersion = () => {
+    try {
+        // 在开发环境中使用 process.env.GIT_COMMIT_HASH
+        // 在生产环境中，这个值会在构建时被替换
+        return process.env.GIT_COMMIT_HASH || 'dev';
+    } catch (error) {
+        return 'dev';
+    }
+};
 
 const Footer = () => {
+    const version = getVersionString();
+    const gitVersion = getGitVersion();
 
     const quickLinks = [
         { name: 'Admin', url: '/admin' },
@@ -31,7 +45,7 @@ const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <div>
                         <h3 className="text-lg font-semibold mb-4">Blueprint Gallery</h3>
-                        <p className="text-sm">Version Beta 1.0.0</p>
+                        <p className="text-sm">{version}</p>
                         <div className="flex items-center space-x-2 mt-2">
                             <a href="https://keycas.cn" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
                                 <p className="text-sm">Powered by KeyCAS</p>

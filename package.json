@@ -9,7 +9,9 @@
     "rdev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "vstart": "vite-node ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "build": "node scripts/update-build.js && remix build",
+    "dev": "remix dev"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
