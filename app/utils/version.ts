@@ -10,5 +10,5 @@ export const VERSION = {
 };
 
 export const getVersionString = () => {
-    return `Version Beta ${VERSION.major}.${VERSION.minor}.${VERSION.patch} (Build ${VERSION.build})`;
+    return `Version Beta ${VERSION.major}.${VERSION.minor}.${VERSION.build})`;
 }; 
