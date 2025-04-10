@@ -1,7 +1,7 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faPhone, faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
-import { getVersionString } from '../utils/version';
+import packageJson from '../../package.json';
 
 // 获取当前 Git commit hash
 const getGitVersion = () => {
@@ -15,7 +15,7 @@ const getGitVersion = () => {
 };
 
 const Footer = () => {
-    const version = getVersionString();
+    const version = `Version ${packageJson.version}`;
     const gitVersion = getGitVersion();
 
     const quickLinks = [
