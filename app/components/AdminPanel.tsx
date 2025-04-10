@@ -334,7 +334,8 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         try {
                             const emailSent = await sendRejectionEmail(
                                 submission.email,
-                                submission.title
+                                submission.title,
+                                rejectionReason || "No specific reason provided"
                             );
                             
                             if (emailSent) {
