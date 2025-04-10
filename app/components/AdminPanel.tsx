@@ -329,7 +329,7 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         throw error;
                     }
                     
-                    // 发送拒绝邮件
+                    // 发送拒绝邮件 test
                     if (submission.email) {
                         try {
                             const emailSent = await sendRejectionEmail(
