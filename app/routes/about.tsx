@@ -43,7 +43,7 @@ const ProjectDescription = () => {
     >
       <h2 className="text-3xl font-serif mb-8">Project Description</h2>
       <div className="max-w-4xl mx-auto space-y-2 text-gray-700">
-        <p className="text-left">This platform was created to preserve and celebrate the incredible design work produced by students. Rather than letting these projects sit forgotten in personal folders, we’ve built a space where creativity can be shared, appreciated, and remembered, turning fleeting ideas into lasting inspiration.</p>
+        <p className="text-left">This platform was created to preserve and celebrate the incredible design work produced by students. Rather than letting these projects sit forgotten in personal folders, we've built a space where creativity can be shared, appreciated, and remembered, turning fleeting ideas into lasting inspiration.</p>
 
       </div>
     </motion.div>
@@ -131,12 +131,15 @@ const Contributors = () => {
     >
       <h2 className="text-3xl font-serif mb-12">Contributors</h2>
       <div className="max-w-4xl mx-auto">
-        <div className="w-full h-48 bg-gray-600 mb-8">
-          {/* Placeholder for contributor picture */}
-          <div className="w-full h-full flex items-center justify-center text-white text-2xl">
-            Contributor Picture
+        <a href="https://keycas.cn" target="_blank" rel="noopener noreferrer" className="block">
+          <div className="w-full h-48 bg-gray-600 mb-8 flex items-center justify-center cursor-pointer transition-opacity hover:opacity-90">
+            {/* KeyCAS Logo */}
+            <div className="flex flex-row items-center justify-center">
+              <div className="text-white text-5xl font-bold mr-8 font-sans">KeyCAS</div>
+              <img src="/assets/KeyCAS.png" alt="KeyCAS Logo" className="h-28 w-auto" />
+            </div>
           </div>
-        </div>
+        </a>
         <div className="text-gray-700 space-y-1">
           <p className="text-left">The website is built by KeyCas. KeyCAS is a student-initiated tech support project that builds websites for other student groups, showcasing other their projects, amplifying their messages, and helping make an impact on campus and beyond.</p>
 
