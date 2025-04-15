@@ -66,7 +66,7 @@ const Navbar = () => {
                         <NavLink to="/" className="font-subheading text-lg hover:text-blue-600 transition-colors">
                             Home
                         </NavLink>
-                        <NavLink to="/#works" className="font-subheading text-lg hover:text-blue-600 transition-colors">
+                        <NavLink to="/gallery" className="font-subheading text-lg hover:text-blue-600 transition-colors">
                             Gallery
                         </NavLink>
                         <NavLink to="/about" className="font-subheading text-lg hover:text-blue-600 transition-colors">
@@ -106,7 +106,7 @@ const Navbar = () => {
                         Home
                     </NavLink>
                     <NavLink
-                        to="/#works"
+                        to="/gallery"
                         className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-blue-600"
                         onClick={() => setIsMenuOpen(false)}
                     >

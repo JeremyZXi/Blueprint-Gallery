@@ -4,7 +4,7 @@ export default [
     index("routes/home.tsx"),
     { path: "/admin", file: "routes/admin.tsx" },
     { path: "/submit", file: "routes/submit.tsx"},
-    { path: "/gallery", file: "routes/gallery.tsx"},
+    { path: "/gallery", file: "routes/gallery.tsx" },
     { path: "/IA-gallery", file: "routes/IA-gallery.tsx"},
     { path: "/MYP-gallery", file: "routes/MYP-gallery.tsx"},
     { path: "/DP-gallery", file: "routes/DP-gallery.tsx"},
