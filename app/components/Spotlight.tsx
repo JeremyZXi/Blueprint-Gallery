@@ -22,6 +22,8 @@ const Spotlight = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [isRotationPaused, setIsRotationPaused] = useState(false);
 
     useEffect(() => {
         const loadSpotlightProjects = async () => {
@@ -44,9 +46,14 @@ const Spotlight = () => {
         loadSpotlightProjects();
     }, []);
 
+    // Update rotation pause state when expandedId changes
+    useEffect(() => {
+        setIsRotationPaused(expandedId !== null);
+    }, [expandedId]);
+
     // Auto-rotation effect
     useEffect(() => {
-        if (allProjects.length === 0) return;
+        if (allProjects.length === 0 || isRotationPaused) return;
 
         const interval = setInterval(() => {
             setCurrentIndex((prevIndex) => {
@@ -57,7 +64,7 @@ const Spotlight = () => {
         }, ROTATION_INTERVAL);
 
         return () => clearInterval(interval);
-    }, [allProjects]);
+    }, [allProjects, isRotationPaused]);
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -91,9 +98,6 @@ const Spotlight = () => {
             }
         }
     };
-
-    // 控制项目详情的展开状态
-    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const toggleExpand = (id: string) => {
         setExpandedId(expandedId === id ? null : id);

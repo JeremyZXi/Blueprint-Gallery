@@ -54,7 +54,7 @@ const Home = () => {
           <Works />
         </div>
         <Spotlight/>
-        <section className="bg-[#44505d] text-white body-font py-20">
+        <section className="bg-[#44505d] text-white body-font py-28">
           <div className="container mx-auto">
             <div className="flex flex-col items-center text-center">
               <InViewMotion>
@@ -62,9 +62,9 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
-                    className="text-left text-2xl font-body max-w-2xl mx-auto mb-12"
+                    className="text-center text-2xl font-body max-w-2xl mx-auto mb-20 leading-loose"
                 >
-                  The gallery visually documents and presents a variety of design works from secondary-school students across different grade levels.<br/>
+                  The gallery visually documents and presents a variety of design works from secondary-school students across different grade levels.<br/><br/>
                   By a simple click, a range of unique product designs categorized by Material, Colors, and Functions will come into your view.
                 </motion.p>
               </InViewMotion>
@@ -75,7 +75,7 @@ const Home = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 0.2 }}
                     onClick={() => navigate('/gallery')}
-                    className="relative bg-[#bbcdd6] text-[#44505d] font-bold py-4 px-10 rounded-full text-xl overflow-hidden z-10"
+                    className="relative bg-[#bbcdd6] text-[#44505d] font-bold py-4 px-10 rounded-full text-xl overflow-hidden z-10 mt-4"
                     whileHover={{ 
                       scale: 1.05,
                       boxShadow: "0 8px 20px rgba(0, 0, 0, 0.2)",
@@ -98,7 +98,7 @@ const Home = () => {
             </div>
           </div>
         </section>
-        <section className="bg-[#bbcdd6] text-[#44505d] body-font py-20">
+        <section className="bg-[#bbcdd6] text-[#44505d] body-font py-28">
           <div className="container mx-auto">
             <div className="flex flex-col items-center text-center">
               <InViewMotion>
@@ -106,13 +106,12 @@ const Home = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8 }}
-                    className="text-left text-2xl font-body max-w-2xl mx-auto mb-12"
+                    className="text-center text-2xl font-body max-w-2xl mx-auto mb-20 leading-loose"
                 >
-                  Want to showcase your design work?<br/>
+                  Want to showcase your design work?<br/><br/>
                   Whether it's an MYP project, DP portfolio, or Internal Assessment, we'd love to feature it!
-                  Stop letting your fabulous design ideas get dusty inside your laptop folders. Click below to submit it and make them work for what they're worth.<br/>
+                  Stop letting your fabulous design ideas get dusty inside your laptop folders. Click below to submit it and make them work for what they're worth.<br/><br/>
                   Every creative piece deserves to be seen and celebrated.
-
                 </motion.p>
               </InViewMotion>
               
