@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import Spotlight from "../components/Spotlight.tsx";
+import Spotlight from "../components/Spotlight";
+
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Blueprint Gallery" },
@@ -49,7 +50,9 @@ const Home = () => {
             </div>
           </div>
         </section>
-        <Works />
+        <div id="works">
+          <Works />
+        </div>
         <Spotlight/>
         <section className="bg-[#44505d] text-white body-font py-20">
           <div className="container mx-auto">
@@ -147,7 +150,7 @@ const Home = () => {
   );
 };
 // InView 动画包装组件
-const InViewMotion = ({ children }) => {
+const InViewMotion = ({ children }: { children: React.ReactNode }) => {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.2,
@@ -223,7 +226,7 @@ const Hero = () => {
 // Works 组件
 const Works = () => {
   const navigate = useNavigate();
-  const [hoveredTab, setHoveredTab] = useState(null);
+  const [hoveredTab, setHoveredTab] = useState<number | null>(null);
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.2,
@@ -251,25 +254,25 @@ const Works = () => {
     {
       title: 'MYP Work',
       color: '#475569',
-      path: '/',
-      description: 'Coming soon...'
+      path: '/MYP-gallery',
+      description: 'Explore innovative Middle Years Programme design projects'
     },
     {
       title: 'DP Work',
       color: '#475569',
-      path: '/',
-      description: 'Coming soon...'
+      path: '/DP-gallery',
+      description: 'Discover creative Diploma Programme design technology works'
     },
     {
       title: 'Internal\nAssessment',
       color: '#475569',
-      path: '/gallery',
+      path: '/IA-gallery',
       description: 'Browse a collection of Internal Assessment projects'
     }
   ];
 
   // 处理卡片点击
-  const handleCardClick = (path) => {
+  const handleCardClick = (path: string) => {
     navigate(path);
   };
 

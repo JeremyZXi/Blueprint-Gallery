@@ -49,6 +49,16 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
     const [pendingIAs, setPendingIAs] = useState<IASubmission[]>([]);
     const [approvedIAs, setApprovedIAs] = useState<IASubmission[]>([]);
     const [rejectedIAs, setRejectedIAs] = useState<IASubmission[]>([]);
+    const [submissionTypeFilter, setSubmissionTypeFilter] = useState<'ALL' | 'MYP' | 'DP' | 'IA'>('ALL');
+    const [allSubmissionTypes, setAllSubmissionTypes] = useState<{
+        pending: { IA: number, MYP: number, DP: number },
+        approved: { IA: number, MYP: number, DP: number },
+        rejected: { IA: number, MYP: number, DP: number }
+    }>({
+        pending: { IA: 0, MYP: 0, DP: 0 },
+        approved: { IA: 0, MYP: 0, DP: 0 },
+        rejected: { IA: 0, MYP: 0, DP: 0 }
+    });
     const [loading, setLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -96,6 +106,22 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         ]
     });
 
+    // 统计不同类型项目的数量
+    const countSubmissionTypes = (submissions: IASubmission[]) => {
+        const counts = { IA: 0, MYP: 0, DP: 0 };
+        submissions.forEach(sub => {
+            if (sub.submissionType === 'MYP') {
+                counts.MYP += 1;
+            } else if (sub.submissionType === 'DP') {
+                counts.DP += 1;
+            } else {
+                // submissionType为'IA'或null的都算作IA
+                counts.IA += 1;
+            }
+        });
+        return counts;
+    };
+
     useEffect(() => {
         // Fetch IAs for the active tab
         const fetchIAs = async () => {
@@ -105,11 +131,31 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                 const pendingData = await fetchPendingSubmissions();
                 setPendingIAs(pendingData);
                 
-                const approvedData = await fetchApprovedSubmissions();
-                setApprovedIAs(approvedData);
+                // 修改fetchApprovedSubmissions调用
+                // 直接使用Supabase查询获取所有类型的已批准项目
+                const { data: approvedData, error: approvedError } = await supabase
+                    .from('submissions')
+                    .select('*')
+                    .eq('status', 'approved')
+                    .order('createdAt', { ascending: false });
+                
+                if (approvedError) {
+                    console.error('Error fetching all approved submissions:', approvedError);
+                    throw approvedError;
+                }
+                
+                setApprovedIAs(approvedData || []);
+                console.log(`Retrieved ${approvedData?.length || 0} total approved submissions`);
                 
                 const rejectedData = await fetchRejectedSubmissions();
                 setRejectedIAs(rejectedData);
+                
+                // 更新所有类型的统计信息
+                setAllSubmissionTypes({
+                    pending: countSubmissionTypes(pendingData),
+                    approved: countSubmissionTypes(approvedData || []),
+                    rejected: countSubmissionTypes(rejectedData)
+                });
             } catch (error) {
                 console.error("Error fetching IAs:", error);
             } finally {
@@ -1312,6 +1358,67 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
         });
     }, []);
 
+    // 根据当前筛选器筛选项目
+    const getFilteredSubmissions = (submissions: IASubmission[]) => {
+        if (submissionTypeFilter === 'ALL') {
+            return submissions;
+        }
+        
+        return submissions.filter(sub => {
+            if (submissionTypeFilter === 'IA') {
+                // 对于IA类型，包括明确为'IA'和未指定类型的项目
+                return sub.submissionType === 'IA' || !sub.submissionType;
+            }
+            return sub.submissionType === submissionTypeFilter;
+        });
+    };
+
+    // 当前页面显示的项目
+    const displayedPendingIAs = getFilteredSubmissions(pendingIAs);
+    const displayedApprovedIAs = getFilteredSubmissions(approvedIAs);
+    const displayedRejectedIAs = getFilteredSubmissions(rejectedIAs);
+
+    // 筛选器组件
+    const SubmissionTypeFilter = () => (
+        <div className="flex items-center space-x-2 mb-4">
+            <span className="text-sm font-medium">Filter Types:</span>
+            <div className="flex space-x-1">
+                <button
+                    onClick={() => setSubmissionTypeFilter('ALL')}
+                    className={`px-3 py-1 text-xs rounded-full transition ${
+                        submissionTypeFilter === 'ALL' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                >
+                    All
+                </button>
+                <button
+                    onClick={() => setSubmissionTypeFilter('MYP')}
+                    className={`px-3 py-1 text-xs rounded-full transition ${
+                        submissionTypeFilter === 'MYP' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    }`}
+                >
+                    MYP
+                </button>
+                <button
+                    onClick={() => setSubmissionTypeFilter('DP')}
+                    className={`px-3 py-1 text-xs rounded-full transition ${
+                        submissionTypeFilter === 'DP' ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                    }`}
+                >
+                    DP
+                </button>
+                <button
+                    onClick={() => setSubmissionTypeFilter('IA')}
+                    className={`px-3 py-1 text-xs rounded-full transition ${
+                        submissionTypeFilter === 'IA' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    }`}
+                >
+                    IA
+                </button>
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex h-screen font-sans">
             {/* Left Sidebar Navigation - Fixed position */}
@@ -1383,11 +1490,17 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                 </div>
                             </div>
                             <div className="bg-yellow-100 p-4 rounded shadow">
-                                <h2 className="font-bold">Pending Approvals</h2>
+                                <h2 className="font-bold">Pending IAs</h2>
                                 <p className="text-2xl">{pendingIAs.length}</p>
                                 
+                                <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                    <p>MYP: {allSubmissionTypes.pending.MYP}</p>
+                                    <p>DP: {allSubmissionTypes.pending.DP}</p>
+                                    <p>IA: {allSubmissionTypes.pending.IA}</p>
+                                </div>
+                                
                                 <div className="mt-4">
-                                    <h3 className="text-sm font-medium mb-2">Waiting Review</h3>
+                                    <h3 className="text-sm font-medium mb-2">Awaiting Review</h3>
                                     <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
                                         {pendingIAs.slice(0, 10).map((ia) => (
                                             <div key={ia.id} className="bg-white rounded shadow-sm p-1 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveTab('pending')}>
@@ -1405,6 +1518,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                     </div>
                                                 )}
                                                 <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                                <div className="flex justify-between items-center mt-1">
+                                                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                                        ia.submissionType === 'MYP' ? 'bg-blue-100 text-blue-700' : 
+                                                        ia.submissionType === 'DP' ? 'bg-purple-100 text-purple-700' : 
+                                                        'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        {ia.submissionType || 'IA'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))}
                                         {pendingIAs.length === 0 && (
@@ -1418,6 +1540,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                             <div className="bg-green-100 p-4 rounded shadow">
                                 <h2 className="font-bold">Approved IAs</h2>
                                 <p className="text-2xl">{approvedIAs.length}</p>
+                                
+                                <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                    <p>MYP: {allSubmissionTypes.approved.MYP}</p>
+                                    <p>DP: {allSubmissionTypes.approved.DP}</p>
+                                    <p>IA: {allSubmissionTypes.approved.IA}</p>
+                                </div>
                                 
                                 <div className="mt-4">
                                     <h3 className="text-sm font-medium mb-2">Published</h3>
@@ -1438,6 +1566,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                     </div>
                                                 )}
                                                 <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                                <div className="flex justify-between items-center mt-1">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                        ia.submissionType === 'MYP' ? 'bg-blue-100 text-blue-700' : 
+                                                        ia.submissionType === 'DP' ? 'bg-purple-100 text-purple-700' : 
+                                                        'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        Project Type: {ia.submissionType || 'IA'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))}
                                         {approvedIAs.length === 0 && (
@@ -1451,6 +1588,12 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                             <div className="bg-red-100 p-4 rounded shadow">
                                 <h2 className="font-bold">Rejected IAs</h2>
                                 <p className="text-2xl">{rejectedIAs.length}</p>
+                                
+                                <div className="mt-2 text-xs text-gray-600 space-y-1">
+                                    <p>MYP: {allSubmissionTypes.rejected.MYP}</p>
+                                    <p>DP: {allSubmissionTypes.rejected.DP}</p>
+                                    <p>IA: {allSubmissionTypes.rejected.IA}</p>
+                                </div>
                                 
                                 <div className="mt-4">
                                     <h3 className="text-sm font-medium mb-2">Not Approved</h3>
@@ -1471,6 +1614,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                     </div>
                                                 )}
                                                 <p className="text-xs truncate" title={ia.title}>{ia.title}</p>
+                                                <div className="flex justify-between items-center mt-1">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                        ia.submissionType === 'MYP' ? 'bg-blue-100 text-blue-700' : 
+                                                        ia.submissionType === 'DP' ? 'bg-purple-100 text-purple-700' : 
+                                                        'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        Project Type: {ia.submissionType || 'IA'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         ))}
                                         {rejectedIAs.length === 0 && (
@@ -1489,17 +1641,19 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         <h1 className="text-2xl font-semibold mb-2">Approved IA Submissions</h1>
                         <p className="mb-4 text-gray-600">View, edit, and manage approved IA submissions.</p>
                         
+                        <SubmissionTypeFilter />
+                        
                         {loading ? (
                             <div className="flex justify-center my-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                             </div>
-                        ) : approvedIAs.length === 0 ? (
+                        ) : displayedApprovedIAs.length === 0 ? (
                             <div className="text-center py-8 bg-gray-50 rounded mt-4">
-                                <p className="text-gray-500">No approved IAs found.</p>
+                                <p className="text-gray-500">No approved submissions{submissionTypeFilter !== 'ALL' ? ` (${submissionTypeFilter} type)` : ''}.</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-6 mt-4">
-                                {approvedIAs.map((ia) => (
+                                {displayedApprovedIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-green-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-green-50">
                                             <div>
@@ -1510,6 +1664,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <p className="text-sm text-gray-400">
                                                     {ia.email} - Grade {ia.gradeLevel}
                                                 </p>
+                                                <div className="mt-1">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                        ia.submissionType === 'MYP' ? 'bg-blue-100 text-blue-700' : 
+                                                        ia.submissionType === 'DP' ? 'bg-purple-100 text-purple-700' : 
+                                                        'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        Project Type: {ia.submissionType || 'IA'}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div className="flex gap-2">
                                                 {editingId !== ia.id ? (
@@ -1947,17 +2110,19 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         <h1 className="text-2xl font-semibold mb-2">Pending IA Approvals</h1>
                         <p className="mb-4 text-gray-600">Review, edit, and approve/reject submitted IAs.</p>
                         
+                        <SubmissionTypeFilter />
+                        
                         {loading ? (
                             <div className="flex justify-center my-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                             </div>
-                        ) : pendingIAs.length === 0 ? (
+                        ) : displayedPendingIAs.length === 0 ? (
                             <div className="text-center py-8 bg-gray-50 rounded mt-4">
-                                <p className="text-gray-500">No pending IAs to approve at this time.</p>
+                                <p className="text-gray-500">No pending submissions{submissionTypeFilter !== 'ALL' ? ` (${submissionTypeFilter} type)` : ''}.</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-6 mt-4">
-                                {pendingIAs.map((ia) => (
+                                {displayedPendingIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-yellow-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-yellow-50">
                                             <div>
@@ -1968,6 +2133,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <p className="text-sm text-gray-400">
                                                     {ia.email} - Grade {ia.gradeLevel}
                                                 </p>
+                                                <div className="mt-1">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                        ia.submissionType === 'MYP' ? 'bg-blue-100 text-blue-700' : 
+                                                        ia.submissionType === 'DP' ? 'bg-purple-100 text-purple-700' : 
+                                                        'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        Project Type: {ia.submissionType || 'IA'}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div className="flex gap-2">
                                                 {editingId !== ia.id ? (
@@ -2401,17 +2575,19 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                         <h1 className="text-2xl font-semibold mb-2">Rejected Submissions</h1>
                         <p className="mb-4 text-gray-600">View and manage rejected IA submissions.</p>
                         
+                        <SubmissionTypeFilter />
+                        
                         {loading ? (
                             <div className="flex justify-center my-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
                             </div>
-                        ) : rejectedIAs.length === 0 ? (
+                        ) : displayedRejectedIAs.length === 0 ? (
                             <div className="text-center py-8 bg-gray-50 rounded mt-4">
-                                <p className="text-gray-500">No rejected submissions found.</p>
+                                <p className="text-gray-500">No rejected submissions{submissionTypeFilter !== 'ALL' ? ` (${submissionTypeFilter} type)` : ''}.</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 gap-6 mt-4">
-                                {rejectedIAs.map((ia) => (
+                                {displayedRejectedIAs.map((ia) => (
                                     <div key={ia.id} className="border rounded-lg overflow-hidden shadow-md bg-white border-red-200">
                                         <div className="p-4 border-b flex items-center justify-between bg-red-50">
                                             <div>
@@ -2422,6 +2598,15 @@ const AdminPanel = ({ ias }: AdminPanelProps) => {
                                                 <p className="text-sm text-gray-400">
                                                     {ia.email} - Grade {ia.gradeLevel}
                                                 </p>
+                                                <div className="mt-1">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                                        ia.submissionType === 'MYP' ? 'bg-blue-100 text-blue-700' : 
+                                                        ia.submissionType === 'DP' ? 'bg-purple-100 text-purple-700' : 
+                                                        'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        Project Type: {ia.submissionType || 'IA'}
+                                                    </span>
+                                                </div>
                                             </div>
                                             <div className="flex gap-2">
                                                 {editingId !== ia.id ? (

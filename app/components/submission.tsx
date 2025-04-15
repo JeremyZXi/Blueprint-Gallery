@@ -197,7 +197,45 @@ interface FormData {
     otherFunction: string;
     pdf: File | null;
     images: File[];
+    submissionType: "MYP" | "DP" | "IA" | null;
 }
+
+const TypeSelector = ({ selectedType, onTypeChange }: { selectedType: string; onTypeChange: (type: string) => void }) => {
+    return (
+        <div className="flex w-full gap-4">
+            <button
+                onClick={() => onTypeChange('MYP')}
+                className={`flex-1 py-3 px-4 rounded-lg text-lg font-medium transition-all duration-300 ${
+                    selectedType === 'MYP'
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                }`}
+            >
+                MYP
+            </button>
+            <button
+                onClick={() => onTypeChange('DP')}
+                className={`flex-1 py-3 px-4 rounded-lg text-lg font-medium transition-all duration-300 ${
+                    selectedType === 'DP'
+                        ? 'bg-purple-600 text-white shadow-lg'
+                        : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                }`}
+            >
+                DP
+            </button>
+            <button
+                onClick={() => onTypeChange('IA')}
+                className={`flex-1 py-3 px-4 rounded-lg text-lg font-medium transition-all duration-300 ${
+                    selectedType === 'IA'
+                        ? 'bg-green-600 text-white shadow-lg'
+                        : 'bg-green-100 text-green-600 hover:bg-green-200'
+                }`}
+            >
+                IA
+            </button>
+        </div>
+    );
+};
 
 const Submission = () => {
     const [formData, setFormData] = useState<FormData>({
@@ -214,7 +252,8 @@ const Submission = () => {
         otherColor: "",
         otherFunction: "",
         pdf: null,
-        images: []
+        images: [],
+        submissionType: null
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -384,6 +423,9 @@ const Submission = () => {
         if (formData.email.trim() === "") errors.email = true;
         if (formData.title.trim() === "") errors.title = true;
         
+        // Check submission type
+        if (!formData.submissionType) errors.submissionType = true;
+        
         // If "Other" is selected for a category, ensure the corresponding custom value is provided
         if (formData.material.length === 0) {
             errors.material = true;
@@ -445,6 +487,7 @@ const Submission = () => {
             // Process tags to include custom "Other" values if selected
             const processedFormData = {
                 ...formData,
+                submissionType: formData.submissionType,
                 material: formData.material.map(mat => 
                     mat === 'Other' ? `Other: ${formData.otherMaterial}` : mat
                 ),
@@ -496,6 +539,7 @@ const Submission = () => {
                     otherFunction: "",
                     pdf: null,
                     images: [],
+                    submissionType: null
                 });
                 
                 // Clear any errors
@@ -572,6 +616,14 @@ const Submission = () => {
 
             <div className="max-w-2xl mx-auto p-6 relative w-full form-container">
                 <h2 className="text-2xl font-bold mb-4">Submit Your Design Project</h2>
+                
+                {/* Submission type selection */}
+                <div className="mb-4">
+                    {formErrors.submissionType && (
+                        <p className="text-red-500 text-xs font-medium mb-1">Please choose a project type</p>
+                    )}
+                    <TypeSelector selectedType={formData.submissionType || ''} onTypeChange={(type) => !isSubmitting && setFormData(prev => ({ ...prev, submissionType: type as "MYP" | "DP" | "IA" | null }))} />
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div>

@@ -15,6 +15,7 @@ export interface IASubmission {
   pdfUrl: string;
   imageUrls: string[];
   description: string;
+  submissionType: "MYP" | "DP" | "IA" | null;
 }
 
 /**
@@ -152,6 +153,7 @@ export const handleSubmission = async (
     otherMaterial?: string;
     otherColor?: string;
     otherFunction?: string;
+    submissionType: "MYP" | "DP" | "IA" | null;
   },
   updateProgress: (progress: number) => void
 ): Promise<{ id: string; pdfUrl: string; imageUrls: string[] }> => {
@@ -214,7 +216,8 @@ export const handleSubmission = async (
       createdAt: new Date().toISOString(),
       pdfUrl,
       imageUrls,
-      description: restFormData.description || ""
+      description: restFormData.description || "",
+      submissionType: restFormData.submissionType
     };
     
     // Save submission data to Supabase

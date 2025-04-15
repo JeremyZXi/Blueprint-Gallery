@@ -82,6 +82,7 @@ Blueprint Gallery is a specialized application designed to showcase student IA (
    - pdfUrl (text)
    - imageUrls (array)
    - description (text)
+   - submissionType (text: 'MYP', 'DP', or 'IA')
 3. Create a 'submissions' storage bucket for files
 
 ### EmailJS Setup
@@ -104,10 +105,11 @@ Blueprint Gallery is a specialized application designed to showcase student IA (
 ### Student Submission Process
 
 1. Navigate to the Submit IA page
-2. Fill in personal and project details
-3. Select relevant categories for material, color, and function
-4. Upload PDF documentation and at least 3 project images
-5. Submit for admin review
+2. Select the submission type (MYP, DP, or IA)
+3. Fill in personal and project details
+4. Select relevant categories for material, color, and function
+5. Upload PDF documentation and at least 3 project images
+6. Submit for admin review
 
 ### Admin Review Process
 
@@ -145,3 +147,56 @@ Blueprint Gallery is a specialized application designed to showcase student IA (
 3. 系统会自动从 `.env.local` 文件加载这些环境变量，并通过 `config.ts` 文件管理
 
 环境变量方法的优势是可以在不同环境中使用不同的配置值，比如开发环境和生产环境。
+
+# 关于统一提交系统
+
+从2023年更新开始，Blueprint Gallery采用了统一提交系统：
+
+1. **旧版多表系统**：之前使用不同表存储不同类型的提交
+   - `submissions` 表存储IA提交
+   - `submissions_myp` 表存储MYP提交
+   - `submissions_dp` 表存储DP提交
+
+2. **新版统一系统**：现在所有提交都存储在`submissions`表中，通过`submissionType`字段区分
+   - `submissionType: 'MYP'` 表示MYP项目
+   - `submissionType: 'DP'` 表示DP项目 
+   - `submissionType: 'IA'` 或NULL（兼容旧数据）表示IA项目
+
+3. **数据库兼容**：系统会尝试从统一表查询数据，如果失败则回退到旧表获取
+   - 提交页面提供选择提交类型的选项（MYP、DP或IA）
+   - 画廊页面会根据用户访问的区域（MYP、DP或IA）自动筛选对应类型的提交
+
+4. **数据库迁移**：如果您从旧版系统升级，请运行迁移脚本添加`submissionType`字段
+   ```sql
+   -- 添加提交类型字段
+   ALTER TABLE submissions 
+   ADD COLUMN IF NOT EXISTS "submissionType" TEXT;
+   
+   -- 更新现有记录为默认IA类型
+   UPDATE submissions 
+   SET "submissionType" = 'IA' 
+   WHERE "submissionType" IS NULL;
+   ```
+
+如有任何疑问，请联系系统管理员获取更多信息。
+
+### Database Update for Submission Types
+
+If you're upgrading from an older version of Blueprint Gallery, you need to update your database schema:
+
+1. Run the following SQL in your Supabase SQL editor to add the submissionType field:
+   ```sql
+   -- 添加提交类型字段
+   ALTER TABLE submissions 
+   ADD COLUMN IF NOT EXISTS "submissionType" TEXT;
+   
+   -- 更新现有记录为默认IA类型
+   UPDATE submissions 
+   SET "submissionType" = 'IA' 
+   WHERE "submissionType" IS NULL;
+   ```
+   
+2. Alternatively, you can run the SQL file included in the project:
+   ```
+   supabase db execute < add_submission_type.sql
+   ```

@@ -62,24 +62,26 @@ export const fetchPendingSubmissions = async (): Promise<IASubmission[]> => {
  */
 export const fetchApprovedSubmissions = async (): Promise<IASubmission[]> => {
   try {
-    console.log('Fetching approved submissions from Supabase...');
+    console.log('Fetching approved IA submissions from Supabase...');
     
+    // 查询所有approved状态的，且submissionType为'IA'或为null的记录（兼容旧数据）
     const { data, error } = await supabase
       .from('submissions')
       .select('*')
       .eq('status', 'approved')
+      .or(`submissionType.eq.IA,submissionType.is.null`)
       .order('createdAt', { ascending: false });
     
     if (error) {
-      console.error('Error fetching approved submissions:', error);
+      console.error('Error fetching approved IA submissions:', error);
       throw error;
     }
     
-    console.log(`Retrieved ${data?.length || 0} approved submissions from Supabase`);
+    console.log(`Retrieved ${data?.length || 0} approved IA submissions from Supabase`);
     return data || [];
     
   } catch (error) {
-    console.error('Failed to fetch approved submissions:', error);
+    console.error('Failed to fetch approved IA submissions:', error);
     return [];
   }
 };
@@ -108,6 +110,92 @@ export const fetchRejectedSubmissions = async (): Promise<IASubmission[]> => {
     
   } catch (error) {
     console.error('Failed to fetch rejected submissions:', error);
+    return [];
+  }
+};
+
+/**
+ * Fetch approved MYP submissions from Supabase
+ * @returns Array of approved MYP submissions
+ */
+export const fetchApprovedMYPSubmissions = async (): Promise<IASubmission[]> => {
+  try {
+    console.log('Fetching approved MYP submissions from Supabase...');
+    
+    // 首先尝试从新版统一表中查询
+    let { data: unifiedData, error: unifiedError } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('submissionType', 'MYP')
+      .order('createdAt', { ascending: false });
+    
+    if (unifiedError) {
+      console.error('Error fetching approved MYP submissions from unified table:', unifiedError);
+      // 如果统一表查询出错，尝试从旧表获取
+      const { data: legacyData, error: legacyError } = await supabase
+        .from('submissions_myp')
+        .select('*')
+        .eq('status', 'approved')
+        .order('createdAt', { ascending: false });
+      
+      if (legacyError) {
+        console.error('Error fetching approved MYP submissions from legacy table:', legacyError);
+        throw legacyError;
+      }
+      
+      console.log(`Retrieved ${legacyData?.length || 0} approved MYP submissions from legacy table`);
+      return legacyData || [];
+    }
+    
+    console.log(`Retrieved ${unifiedData?.length || 0} approved MYP submissions from unified table`);
+    return unifiedData || [];
+    
+  } catch (error) {
+    console.error('Failed to fetch approved MYP submissions:', error);
+    return [];
+  }
+};
+
+/**
+ * Fetch approved DP submissions from Supabase
+ * @returns Array of approved DP submissions
+ */
+export const fetchApprovedDPSubmissions = async (): Promise<IASubmission[]> => {
+  try {
+    console.log('Fetching approved DP submissions from Supabase...');
+    
+    // 首先尝试从新版统一表中查询
+    let { data: unifiedData, error: unifiedError } = await supabase
+      .from('submissions')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('submissionType', 'DP')
+      .order('createdAt', { ascending: false });
+    
+    if (unifiedError) {
+      console.error('Error fetching approved DP submissions from unified table:', unifiedError);
+      // 如果统一表查询出错，尝试从旧表获取
+      const { data: legacyData, error: legacyError } = await supabase
+        .from('submissions_dp')
+        .select('*')
+        .eq('status', 'approved')
+        .order('createdAt', { ascending: false });
+      
+      if (legacyError) {
+        console.error('Error fetching approved DP submissions from legacy table:', legacyError);
+        throw legacyError;
+      }
+      
+      console.log(`Retrieved ${legacyData?.length || 0} approved DP submissions from legacy table`);
+      return legacyData || [];
+    }
+    
+    console.log(`Retrieved ${unifiedData?.length || 0} approved DP submissions from unified table`);
+    return unifiedData || [];
+    
+  } catch (error) {
+    console.error('Failed to fetch approved DP submissions:', error);
     return [];
   }
 };
@@ -318,6 +406,200 @@ export const deleteMaterialTag = async (id: string): Promise<void> => {
     }
   } catch (error) {
     console.error("Error deleting material tag:", error);
+    throw error;
+  }
+};
+
+/**
+ * Upload a MYP PDF file to Supabase Storage
+ * @param file PDF file to upload
+ * @param submissionId Unique ID for the submission
+ * @returns Download URL for the uploaded file
+ */
+export const uploadMYPPDF = async (file: File, submissionId: string): Promise<string> => {
+  console.log('Starting MYP PDF upload for submission:', submissionId);
+  
+  // Sanitize the filename
+  const originalFilename = file.name;
+  const safeFilename = sanitizeFilename(originalFilename);
+  console.log(`Sanitizing filename from "${originalFilename}" to "${safeFilename}"`);
+  
+  // Create a new File object with the sanitized name
+  const safeFile = new File([file], safeFilename, { type: file.type });
+  
+  // Attempt upload with sanitized filename
+  const path = `${submissionId}/pdf/${safeFilename}`;
+  
+  try {
+    const url = await uploadFileToSupabase(safeFile, 'submissions-myp', path);
+    console.log('MYP PDF upload complete:', url);
+    return url;
+  } catch (error) {
+    console.error('Error uploading MYP PDF:', error);
+    throw new Error(`MYP PDF upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Upload a MYP image file to Supabase Storage
+ * @param file Image file to upload
+ * @param submissionId Unique ID for the submission
+ * @param index Index of the image in the upload sequence
+ * @returns Download URL for the uploaded file
+ */
+export const uploadMYPImage = async (file: File, submissionId: string, index: number): Promise<string> => {
+  console.log(`Starting MYP image upload ${index + 1} for submission:`, submissionId);
+  
+  // Sanitize the filename
+  const originalFilename = file.name;
+  const safeFilename = sanitizeFilename(originalFilename);
+  console.log(`Sanitizing filename from "${originalFilename}" to "${safeFilename}"`);
+  
+  // Create a new File object with the sanitized name
+  const safeFile = new File([file], safeFilename, { type: file.type });
+  
+  const path = `${submissionId}/images/${index}_${safeFilename}`;
+  
+  try {
+    const url = await uploadFileToSupabase(safeFile, 'submissions-myp', path);
+    console.log(`MYP Image ${index + 1} upload complete:`, url);
+    return url;
+  } catch (error) {
+    console.error(`Error uploading MYP image ${index + 1}:`, error);
+    throw new Error(`MYP Image upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Save MYP submission data to Supabase
+ * @param submission Submission data
+ * @returns The ID of the created record
+ */
+export const saveMYPSubmission = async (submission: IASubmission): Promise<string> => {
+  console.log('Saving MYP submission to database:', submission);
+  
+  try {
+    const { data, error } = await supabase
+      .from('submissions_myp')
+      .insert([submission])
+      .select();
+
+    if (error) {
+      console.error('Error saving MYP submission:', error);
+      
+      if (error.message.includes('does not exist')) {
+        throw new Error('The submissions_myp table does not exist. Please create it in the Supabase dashboard.');
+      }
+      
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.error('No data returned from MYP submission insert');
+      throw new Error('Failed to save MYP submission data');
+    }
+    
+    console.log('MYP Submission saved successfully:', data[0]);
+    return data[0].id;
+  } catch (error) {
+    console.error('Exception saving MYP submission:', error);
+    throw error;
+  }
+};
+
+/**
+ * Upload a DP PDF file to Supabase Storage
+ * @param file PDF file to upload
+ * @param submissionId Unique ID for the submission
+ * @returns Download URL for the uploaded file
+ */
+export const uploadDPPDF = async (file: File, submissionId: string): Promise<string> => {
+  console.log('Starting DP PDF upload for submission:', submissionId);
+  
+  // Sanitize the filename
+  const originalFilename = file.name;
+  const safeFilename = sanitizeFilename(originalFilename);
+  console.log(`Sanitizing filename from "${originalFilename}" to "${safeFilename}"`);
+  
+  // Create a new File object with the sanitized name
+  const safeFile = new File([file], safeFilename, { type: file.type });
+  
+  // Attempt upload with sanitized filename
+  const path = `${submissionId}/pdf/${safeFilename}`;
+  
+  try {
+    const url = await uploadFileToSupabase(safeFile, 'submissions-dp', path);
+    console.log('DP PDF upload complete:', url);
+    return url;
+  } catch (error) {
+    console.error('Error uploading DP PDF:', error);
+    throw new Error(`DP PDF upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Upload a DP image file to Supabase Storage
+ * @param file Image file to upload
+ * @param submissionId Unique ID for the submission
+ * @param index Index of the image in the upload sequence
+ * @returns Download URL for the uploaded file
+ */
+export const uploadDPImage = async (file: File, submissionId: string, index: number): Promise<string> => {
+  console.log(`Starting DP image upload ${index + 1} for submission:`, submissionId);
+  
+  // Sanitize the filename
+  const originalFilename = file.name;
+  const safeFilename = sanitizeFilename(originalFilename);
+  console.log(`Sanitizing filename from "${originalFilename}" to "${safeFilename}"`);
+  
+  // Create a new File object with the sanitized name
+  const safeFile = new File([file], safeFilename, { type: file.type });
+  
+  const path = `${submissionId}/images/${index}_${safeFilename}`;
+  
+  try {
+    const url = await uploadFileToSupabase(safeFile, 'submissions-dp', path);
+    console.log(`DP Image ${index + 1} upload complete:`, url);
+    return url;
+  } catch (error) {
+    console.error(`Error uploading DP image ${index + 1}:`, error);
+    throw new Error(`DP Image upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
+/**
+ * Save DP submission data to Supabase
+ * @param submission Submission data
+ * @returns The ID of the created record
+ */
+export const saveDPSubmission = async (submission: IASubmission): Promise<string> => {
+  console.log('Saving DP submission to database:', submission);
+  
+  try {
+    const { data, error } = await supabase
+      .from('submissions_dp')
+      .insert([submission])
+      .select();
+
+    if (error) {
+      console.error('Error saving DP submission:', error);
+      
+      if (error.message.includes('does not exist')) {
+        throw new Error('The submissions_dp table does not exist. Please create it in the Supabase dashboard.');
+      }
+      
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.error('No data returned from DP submission insert');
+      throw new Error('Failed to save DP submission data');
+    }
+    
+    console.log('DP Submission saved successfully:', data[0]);
+    return data[0].id;
+  } catch (error) {
+    console.error('Exception saving DP submission:', error);
     throw error;
   }
 }; 

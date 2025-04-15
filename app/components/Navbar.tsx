@@ -1,6 +1,46 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Palette, Menu, X } from 'lucide-react';
+
+// 处理链接跳转并滚动到锚点
+const NavLink = ({ to, children, className, onClick }: { to: string; children: React.ReactNode; className: string; onClick?: () => void }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    
+    const handleClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        
+        // 如果有传入的onClick函数（用于关闭菜单等），执行它
+        if (onClick) onClick();
+        
+        // 如果链接包含锚点
+        if (to.includes('#')) {
+            const [path, hash] = to.split('#');
+            const targetPath = path || '/';
+            
+            // 如果我们已经在目标页面（首页），只需滚动到锚点
+            if (location.pathname === '/' || location.pathname === targetPath) {
+                const element = document.getElementById(hash);
+                if (element) {
+                    // 平滑滚动到元素
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else {
+                // 如果不在目标页面，先导航到页面，然后滚动到锚点
+                navigate(`${targetPath}#${hash}`);
+            }
+        } else {
+            // 常规链接，直接导航
+            navigate(to);
+        }
+    };
+    
+    return (
+        <a href={to} className={className} onClick={handleClick}>
+            {children}
+        </a>
+    );
+};
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -23,18 +63,18 @@ const Navbar = () => {
 
                     {/* 桌面端导航链接 */}
                     <div className="hidden md:flex items-center space-x-8">
-                        <Link to="/" className="font-subheading text-lg hover:text-blue-600 transition-colors">
+                        <NavLink to="/" className="font-subheading text-lg hover:text-blue-600 transition-colors">
                             Home
-                        </Link>
-                        <Link to="/gallery" className="font-subheading text-lg hover:text-blue-600 transition-colors">
+                        </NavLink>
+                        <NavLink to="/#works" className="font-subheading text-lg hover:text-blue-600 transition-colors">
                             Gallery
-                        </Link>
-                        <Link to="/about" className="font-subheading text-lg hover:text-blue-600 transition-colors">
+                        </NavLink>
+                        <NavLink to="/about" className="font-subheading text-lg hover:text-blue-600 transition-colors">
                             About Us
-                        </Link>
-                        <Link to="/submit" className="font-subheading text-lg hover:text-blue-600 transition-colors">
+                        </NavLink>
+                        <NavLink to="/submit" className="font-subheading text-lg hover:text-blue-600 transition-colors">
                             Submit Your Work
-                        </Link>
+                        </NavLink>
                     </div>
 
                     {/* 移动端菜单按钮 */}
@@ -58,34 +98,34 @@ const Navbar = () => {
             {/* 移动端菜单 */}
             <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
                 <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                    <Link
+                    <NavLink
                         to="/"
                         className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-blue-600"
                         onClick={() => setIsMenuOpen(false)}
                     >
                         Home
-                    </Link>
-                    <Link
-                        to="/gallery"
+                    </NavLink>
+                    <NavLink
+                        to="/#works"
                         className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-blue-600"
                         onClick={() => setIsMenuOpen(false)}
                     >
                         Gallery
-                    </Link>
-                    <Link
+                    </NavLink>
+                    <NavLink
                         to="/about"
                         className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-blue-600"
                         onClick={() => setIsMenuOpen(false)}
                     >
                         About Us
-                    </Link>
-                    <Link
+                    </NavLink>
+                    <NavLink
                         to="/submit"
                         className="block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-700 hover:text-blue-600"
                         onClick={() => setIsMenuOpen(false)}
                     >
                         Submit Your Work
-                    </Link>
+                    </NavLink>
                 </div>
             </div>
         </nav>
