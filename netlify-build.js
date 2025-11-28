@@ -53,6 +53,8 @@ const htmlContent = `<!DOCTYPE html>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Blueprint Gallery</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
     <link rel="stylesheet" href="${cssFile}" />
   </head>
   <body>
@@ -81,5 +83,20 @@ fs.writeFileSync(
   `/assets/* /assets/:splat 200
 /* /index.html 200`
 );
+
+// 复制 favicon 文件到构建输出目录
+const publicDir = path.join(__dirname, 'public');
+const faviconSvg = path.join(publicDir, 'favicon.svg');
+const faviconIco = path.join(publicDir, 'favicon.ico');
+
+if (fs.existsSync(faviconSvg)) {
+  fs.copyFileSync(faviconSvg, path.join(buildDir, 'favicon.svg'));
+  console.log('✅ favicon.svg已复制');
+}
+
+if (fs.existsSync(faviconIco)) {
+  fs.copyFileSync(faviconIco, path.join(buildDir, 'favicon.ico'));
+  console.log('✅ favicon.ico已复制');
+}
 
 console.log('Netlify构建准备完成!'); 
