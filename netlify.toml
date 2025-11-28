@@ -3,6 +3,14 @@
   publish = "build/client"
   base = "."
 
+# Note: API routes will need to be handled separately
+# For now, we'll serve static files and handle API routes via client-side calls
+
+[[redirects]]
+  from = "/assets/*"
+  to = "/assets/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
