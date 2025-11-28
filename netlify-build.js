@@ -16,11 +16,14 @@ if (!fs.existsSync(buildDir)) {
 // 读取manifest文件来获取正确的入口点和CSS文件
 let entryModule = '/assets/entry.client-BEnHcCW0.js';
 let cssFile = '/assets/root-D1u4QnWi.css';
+let manifestFile = '/assets/manifest-1a7d84b6.js';
 
 try {
   const manifestFiles = fs.readdirSync(assetsDir).filter(f => f.startsWith('manifest-') && f.endsWith('.js'));
   if (manifestFiles.length > 0) {
-    const manifestPath = path.join(assetsDir, manifestFiles[0]);
+    const manifestFileName = manifestFiles[0];
+    manifestFile = `/assets/${manifestFileName}`;
+    const manifestPath = path.join(assetsDir, manifestFileName);
     const manifestContent = fs.readFileSync(manifestPath, 'utf-8');
     
     // 提取entry module和CSS文件
@@ -34,15 +37,16 @@ try {
       cssFile = cssMatch[1];
     }
     
-    console.log(`找到manifest: ${manifestFiles[0]}`);
+    console.log(`找到manifest: ${manifestFileName}`);
     console.log(`入口模块: ${entryModule}`);
     console.log(`CSS文件: ${cssFile}`);
+    console.log(`Manifest文件: ${manifestFile}`);
   }
 } catch (error) {
   console.warn('无法读取manifest文件，使用默认值:', error.message);
 }
 
-// 创建HTML内容模板
+// 创建HTML内容模板 - React Router v7需要先加载manifest
 const htmlContent = `<!DOCTYPE html>
 <html lang="en">
   <head>
@@ -53,6 +57,7 @@ const htmlContent = `<!DOCTYPE html>
   </head>
   <body>
     <div id="root"></div>
+    <script src="${manifestFile}"></script>
     <script type="module" src="${entryModule}"></script>
   </body>
 </html>`;

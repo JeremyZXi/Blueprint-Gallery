@@ -3,9 +3,6 @@
   publish = "build/client"
   base = "."
 
-[functions]
-  directory = "build/server"
-
 [[redirects]]
   from = "/*"
   to = "/index.html"
