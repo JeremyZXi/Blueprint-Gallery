@@ -42,11 +42,8 @@ try {
   console.warn('无法读取manifest文件，使用默认值:', error.message);
 }
 
-// 修复200.html文件
-const html200Path = path.join(buildDir, '200.html');
-if (fs.existsSync(html200Path)) {
-  console.log('修复200.html文件...');
-  const htmlContent = `<!DOCTYPE html>
+// 创建HTML内容模板
+const htmlContent = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -59,36 +56,18 @@ if (fs.existsSync(html200Path)) {
     <script type="module" src="${entryModule}"></script>
   </body>
 </html>`;
-  fs.writeFileSync(html200Path, htmlContent);
-  console.log('✅ 200.html已修复');
-}
 
-// 检查是否有index.html文件
-if (!fs.existsSync(path.join(buildDir, 'index.html'))) {
-  // 如果没有index.html但有200.html，复制它
-  if (fs.existsSync(html200Path)) {
-    console.log('正在将200.html复制为index.html...');
-    fs.copyFileSync(html200Path, path.join(buildDir, 'index.html'));
-  } else {
-    // 如果没有现成的HTML文件，创建一个简单的index.html
-    console.log('创建基本的index.html文件...');
-    const htmlContent = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blueprint Gallery</title>
-  <link rel="stylesheet" href="${cssFile}">
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="${entryModule}"></script>
-</body>
-</html>`;
-    
-    fs.writeFileSync(path.join(buildDir, 'index.html'), htmlContent);
-  }
-}
+// 修复或创建200.html文件
+const html200Path = path.join(buildDir, '200.html');
+console.log('修复/创建200.html文件...');
+fs.writeFileSync(html200Path, htmlContent);
+console.log('✅ 200.html已修复');
+
+// 始终创建index.html文件（Netlify默认查找index.html）
+const htmlIndexPath = path.join(buildDir, 'index.html');
+console.log('创建index.html文件...');
+fs.writeFileSync(htmlIndexPath, htmlContent);
+console.log('✅ index.html已创建');
 
 // 创建_redirects文件
 console.log('创建Netlify _redirects文件...');
