@@ -1,10 +1,10 @@
 {
   "name": "my-vite-app",
-  "version": "0.7.11",
+  "version": "0.7.12",
   "private": true,
   "type": "module",
   "scripts": {
-    "rbuild": "react-router build",
+    "rbuild": "react-router build && node netlify-build.js",
     "vbuild": "vite build",
     "vdev": "vite dev",
     "rdev": "react-router dev",
