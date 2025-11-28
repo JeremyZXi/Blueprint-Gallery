@@ -1,11 +1,8 @@
 import {
   isRouteErrorResponse,
-  Links,
-  Meta,
   Outlet,
-  Scripts,
-  ScrollRestoration,
 } from "react-router";
+import { Scripts } from "react-router-dom";
 
 import type { Route } from "./+types/root";
 import "./app.css";
@@ -26,20 +23,13 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  // In SPA mode, Layout is just a wrapper
+  // Scripts component is required by React Router v7 even in SPA mode
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <Meta />
-        <Links />
-      </head>
-      <body>
-        {children}
-        <ScrollRestoration />
-        <Scripts />
-      </body>
-    </html>
+    <>
+      {children}
+      <Scripts />
+    </>
   );
 }
 

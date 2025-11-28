@@ -17,21 +17,14 @@ import EmailTest from "./routes/emailtest";
 import NotFound from "./routes/notfound";
 
 // Helper component to wrap routes with Layout
+// In SPA mode, Layout doesn't include <html> and <body> tags
 function RootLayout() {
-  return (
-    <Layout>
-      <App />
-    </Layout>
-  );
+  return <App />;
 }
 
 // Helper component for error boundary
 function RootErrorBoundary({ error }: { error: unknown }) {
-  return (
-    <Layout>
-      <ErrorBoundary error={error} />
-    </Layout>
-  );
+  return <ErrorBoundary error={error} />;
 }
 
 // Define routes manually for SPA mode
