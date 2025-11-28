@@ -1,6 +1,6 @@
 import { supabase } from "../utils/supabase";
 
-export const action = async ({ request }: { request: Request }) => {
+export const clientAction = async ({ request }: { request: Request }) => {
   if (request.method !== "POST") {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
